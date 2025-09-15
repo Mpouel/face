@@ -1,22 +1,21 @@
 // CONFIG (tweak these)
-const MIN_AGE = 30;                 // age threshold
-const CHECK_TIME_MS = 3000;         // rolling window length to average (ms)
-const SAMPLE_INTERVAL_MS = 250;     // how often to sample (ms)
-const CONF_THRESHOLD = 0.6;         // face detection confidence threshold (0..1)
-const MIN_COVERAGE_RATIO = 0.6;     // require at least this ratio of valid samples in window
+const MIN_AGE = 30;                
+const MID_AGE = 40;                // middle threshold for yellow
+const CHECK_TIME_MS = 3000;        
+const SAMPLE_INTERVAL_MS = 250;    
+const CONF_THRESHOLD = 0.6;        
+const MIN_COVERAGE_RATIO = 0.6;    
 
 // MODEL PATHS
-const LOCAL_MODELS_PATH = './models'; // your models folder on server
+const LOCAL_MODELS_PATH = './models';
 const CDN_WEIGHTS = 'https://unpkg.com/face-api.js/weights';
 
-// internals
 const video = document.getElementById('video');
 const canvas = document.getElementById('overlay');
 const ctx = canvas.getContext('2d');
-let samples = []; // {t:timestamp, age:number}
+let samples = []; 
 let sampleTimer = null;
 
-// Wait until faceapi global exists
 function waitForFaceApi(timeout = 10000) {
   return new Promise((resolve, reject) => {
     const start = Date.now();
@@ -28,33 +27,22 @@ function waitForFaceApi(timeout = 10000) {
   });
 }
 
-// try load models local, fallback to CDN
 async function loadModels() {
   try {
-    console.log('Loading models from', LOCAL_MODELS_PATH);
     await faceapi.nets.tinyFaceDetector.loadFromUri(LOCAL_MODELS_PATH);
     await faceapi.nets.ageGenderNet.loadFromUri(LOCAL_MODELS_PATH);
-    console.log('Models loaded (local).');
   } catch (err) {
-    console.warn('Local models failed, falling back to CDN weights:', err);
     await faceapi.nets.tinyFaceDetector.loadFromUri(CDN_WEIGHTS);
     await faceapi.nets.ageGenderNet.loadFromUri(CDN_WEIGHTS);
-    console.log('Models loaded (CDN).');
   }
 }
 
 async function startCamera() {
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
-    video.srcObject = stream;
-    await video.play();
-    canvas.width = video.videoWidth || 640;
-    canvas.height = video.videoHeight || 480;
-    console.log('Camera started');
-  } catch (err) {
-    console.error('Camera error:', err);
-    throw err;
-  }
+  const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+  video.srcObject = stream;
+  await video.play();
+  canvas.width = video.videoWidth || 640;
+  canvas.height = video.videoHeight || 480;
 }
 
 function pruneOldSamples() {
@@ -71,6 +59,12 @@ function evaluateSamples() {
   return { enough: true, avg, count: samples.length };
 }
 
+function getBoxColor(age) {
+  if (age < MIN_AGE) return 'lime';    // under 30
+  if (age < MID_AGE) return 'yellow';  // 30–40
+  return 'red';                         // over 40
+}
+
 function drawOverlay(detections) {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   if (!detections || detections.length === 0) return;
@@ -79,8 +73,7 @@ function drawOverlay(detections) {
     const box = result.detection.box;
     const age = result.age;
     const score = result.detection.score;
-
-    const color = age >= MIN_AGE ? 'red' : 'lime';
+    const color = getBoxColor(age);
 
     ctx.lineWidth = 2;
     ctx.strokeStyle = color;
@@ -113,24 +106,13 @@ async function sampleLoop() {
       drawOverlay(null);
       pruneOldSamples();
     }
-
-    // Optional: global check
-    const evalRes = evaluateSamples();
-    // document.body.style.backgroundColor = (evalRes.enough && evalRes.avg >= MIN_AGE) ? 'red' : 'white';
   } catch (err) {
     console.error('sampleLoop error:', err);
   }
 }
 
 async function init() {
-  try {
-    await waitForFaceApi(10000);
-    console.log('faceapi ready');
-  } catch (err) {
-    console.error('faceapi did not load in time:', err);
-    return;
-  }
-
+  await waitForFaceApi(10000);
   await loadModels();
   await startCamera();
 
