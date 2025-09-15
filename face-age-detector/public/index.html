@@ -22,14 +22,13 @@
   <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
   <script>eruda.init();</script>
 
-  <!-- Face API -->
-  <script src="https://cdn.jsdelivr.net/npm/face-api.js"></script>
+  <!-- Face API library -->
+  <script defer src="https://cdn.jsdelivr.net/npm/face-api.js"></script>
 
-  <!-- Main Script -->
-  <script>
-    const video = document.getElementById("video");
-
+  <!-- Main Script (must also be defer so it waits for face-api.js) -->
+  <script defer>
     async function startVideo() {
+      const video = document.getElementById("video");
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: {} });
         video.srcObject = stream;
@@ -45,6 +44,7 @@
 
       console.log("Models loaded. Starting detection...");
 
+      const video = document.getElementById("video");
       setInterval(async () => {
         const detections = await faceapi
           .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
@@ -63,8 +63,11 @@
       }, 1000);
     }
 
-    video.addEventListener("play", run);
-    startVideo();
+    document.addEventListener("DOMContentLoaded", () => {
+      startVideo();
+      const video = document.getElementById("video");
+      video.addEventListener("play", run);
+    });
   </script>
 </body>
 </html>
