@@ -1,29 +1,13 @@
 body {
     margin: 0;
-    background: #111;
+    background: white;
     display: flex;
-    flex-direction: column;
-    align-items: center;
     justify-content: center;
+    align-items: center;
     height: 100vh;
   }
   
-  #startBtn {
-    padding: 10px 20px;
-    font-size: 18px;
-    margin-bottom: 20px;
-    cursor: pointer;
-  }
-  
-  #debugBox {
-    width: 200px;
-    height: 200px;
-    background: white; /* couleur par défaut */
-    border: 3px solid #333;
-    margin-bottom: 20px;
-  }
-  
-  #pipVideo {
-    display: none; /* caché, sert seulement pour PiP */
+  #video, #canvas {
+    display: none; /* cacher vidéo et canvas */
   }
   
