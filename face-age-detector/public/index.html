@@ -15,17 +15,16 @@
   </style>
 </head>
 <body>
-  <h1>Test Debug</h1>
+  <h1>Local Models Test</h1>
   <video id="video" width="400" height="300" autoplay muted></video>
 
   <!-- Debug console -->
   <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
   <script>eruda.init();</script>
 
-  <!-- Face API (UMD build, définit window.faceapi) -->
+  <!-- Face API (UMD) -->
   <script src="https://unpkg.com/face-api.js/dist/face-api.min.js"></script>
 
-  <!-- Main Script -->
   <script>
     async function startVideo() {
       const video = document.getElementById("video");
@@ -38,9 +37,9 @@
     }
 
     async function run() {
-      console.log("Loading models...");
-      await faceapi.nets.tinyFaceDetector.loadFromUri("https://unpkg.com/face-api.js/weights");
-      await faceapi.nets.ageGenderNet.loadFromUri("https://unpkg.com/face-api.js/weights");
+      console.log("Loading local models...");
+      await faceapi.nets.tinyFaceDetector.loadFromUri("/models");
+      await faceapi.nets.ageGenderNet.loadFromUri("/models");
 
       console.log("Models loaded. Starting detection...");
 
