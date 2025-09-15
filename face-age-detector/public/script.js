@@ -1,42 +1,41 @@
-import * as faceapi from "../node_modules/face-api.js/dist/face-api.esm.js";
-
-const video = document.getElementById("video");
-
 async function startVideo() {
+  const video = document.getElementById("video");
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ video: {} });
     video.srcObject = stream;
   } catch (err) {
-    console.error("Erreur caméra:", err);
+    console.error("Camera error:", err);
   }
 }
 
-async function loadModels() {
+async function run() {
+  console.log("Loading local models...");
   await faceapi.nets.tinyFaceDetector.loadFromUri("./models");
   await faceapi.nets.ageGenderNet.loadFromUri("./models");
-}
 
-async function detect() {
-  const detections = await faceapi
-    .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
-    .withAgeAndGender();
+  console.log("Models loaded. Starting detection...");
 
-  if (detections.length > 0) {
-    const age = detections[0].age;
-    console.log("Âge estimé:", age.toFixed(0));
+  const video = document.getElementById("video");
+  setInterval(async () => {
+    const detections = await faceapi
+      .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
+      .withAgeAndGender();
 
-    if (age > 30) {
-      document.body.style.background = "red";
-    } else {
-      document.body.style.background = "white";
+    if (detections.length > 0) {
+      const age = detections[0].age;
+      console.log("Detected age:", age);
+
+      if (age > 30) {
+        document.body.style.backgroundColor = "red";
+      } else {
+        document.body.style.backgroundColor = "white";
+      }
     }
-  } else {
-    document.body.style.background = "white";
-  }
+  }, 1000);
 }
 
-video.addEventListener("play", () => {
-  setInterval(detect, 1000);
+document.addEventListener("DOMContentLoaded", () => {
+  startVideo();
+  const video = document.getElementById("video");
+  video.addEventListener("play", run);
 });
-
-loadModels().then(startVideo);

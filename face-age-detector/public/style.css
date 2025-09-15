@@ -1,0 +1,9 @@
+body {
+    background: white;
+    text-align: center;
+}
+
+video {
+    margin-top: 20px;
+    border: 2px solid black;
+}
