@@ -1,67 +1,40 @@
 // CONFIG
-const MIN_AGE = 30;                
-const MID_AGE = 40;                
-const CHECK_TIME_MS = 3000;        
-const SAMPLE_INTERVAL_MS = 250;    
-const CONF_THRESHOLD = 0.6;        
-const MIN_COVERAGE_RATIO = 0.6;    
+const MIN_AGE = 30;
+const MID_AGE = 40;
+const CHECK_TIME_MS = 3000;
+const SAMPLE_INTERVAL_MS = 250;
+const CONF_THRESHOLD = 0.6;
+const MIN_COVERAGE_RATIO = 0.6;
 
 // MODEL PATHS
 const LOCAL_MODELS_PATH = './models';
 const CDN_WEIGHTS = 'https://unpkg.com/face-api.js/weights';
 
-const video = document.getElementById('video');
-const canvas = document.getElementById('overlay');
-const ctx = canvas.getContext('2d');
-let samples = []; 
+// DOM
+const pipVideo = document.getElementById("pipVideo");
+const startBtn = document.getElementById("startBtn");
+
+// Hidden video + canvas
+const video = document.createElement("video");
+video.autoplay = true;
+video.muted = true;
+video.playsInline = true;
+
+const canvas = document.createElement("canvas");
+canvas.width = 640;
+canvas.height = 360;
+const ctx = canvas.getContext("2d");
+
+// PiP source
+const stream = canvas.captureStream(30);
+pipVideo.srcObject = stream;
+
+// Internals
+let samples = [];
 let sampleTimer = null;
+let color = "white";
 
-// Hide the video/canvas (used only for detection)
-video.style.display = 'none';
-canvas.style.display = 'none';
-
-// Create PiP-style floating box
-const pipBox = document.createElement('div');
-pipBox.style.position = 'fixed';
-pipBox.style.bottom = '20px';
-pipBox.style.right = '20px';
-pipBox.style.width = '120px';
-pipBox.style.height = '90px';
-pipBox.style.border = '3px solid #000';
-pipBox.style.borderRadius = '8px';
-pipBox.style.backgroundColor = 'white';
-pipBox.style.zIndex = '9999';
-pipBox.style.boxShadow = '0 0 10px rgba(0,0,0,0.5)';
-document.body.appendChild(pipBox);
-
-function waitForFaceApi(timeout = 10000) {
-  return new Promise((resolve, reject) => {
-    const start = Date.now();
-    (function check() {
-      if (window.faceapi && typeof window.faceapi.nets !== 'undefined') return resolve();
-      if (Date.now() - start > timeout) return reject(new Error('faceapi not available'));
-      setTimeout(check, 50);
-    })();
-  });
-}
-
-async function loadModels() {
-  try {
-    await faceapi.nets.tinyFaceDetector.loadFromUri(LOCAL_MODELS_PATH);
-    await faceapi.nets.ageGenderNet.loadFromUri(LOCAL_MODELS_PATH);
-  } catch (err) {
-    await faceapi.nets.tinyFaceDetector.loadFromUri(CDN_WEIGHTS);
-    await faceapi.nets.ageGenderNet.loadFromUri(CDN_WEIGHTS);
-  }
-}
-
-async function startCamera() {
-  const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
-  video.srcObject = stream;
-  await video.play();
-  canvas.width = video.videoWidth || 640;
-  canvas.height = video.videoHeight || 480;
-}
+// ==== HELPERS ====
 
 function pruneOldSamples() {
   const cutoff = Date.now() - CHECK_TIME_MS;
@@ -74,46 +47,95 @@ function evaluateSamples() {
   const requiredCount = Math.ceil(expectedSamples * MIN_COVERAGE_RATIO);
   if (samples.length < requiredCount) return { enough: false };
   const avg = samples.reduce((a, b) => a + b.age, 0) / samples.length;
-  return { enough: true, avg, count: samples.length };
+  return { enough: true, avg };
 }
 
-function updateColors(detections) {
-  let bg = 'white';
-  if (detections && detections.length > 0) {
-    const hasRed = detections.some(r => r.age >= MID_AGE);
-    const hasYellow = detections.some(r => r.age >= MIN_AGE && r.age < MID_AGE);
-    if (hasRed) bg = 'red';
-    else if (hasYellow) bg = 'yellow';
+function updateColor(avgAge) {
+  if (avgAge >= MID_AGE) {
+    color = "red";
+  } else if (avgAge >= MIN_AGE) {
+    color = "yellow";
+  } else {
+    color = "white";
   }
-
-  // Update background + PiP box
-  document.body.style.backgroundColor = bg;
-  pipBox.style.backgroundColor = bg;
 }
 
+// ==== PiP canvas drawing ====
+function drawColor() {
+  ctx.fillStyle = color;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  requestAnimationFrame(drawColor);
+}
+drawColor();
+
+// ==== face-api loading ====
+function waitForFaceApi(timeout = 10000) {
+  return new Promise((resolve, reject) => {
+    const start = Date.now();
+    (function check() {
+      if (window.faceapi && typeof window.faceapi.nets !== "undefined") return resolve();
+      if (Date.now() - start > timeout) return reject(new Error("faceapi not available"));
+      setTimeout(check, 50);
+    })();
+  });
+}
+
+async function loadModels() {
+  try {
+    console.log("Loading models from", LOCAL_MODELS_PATH);
+    await faceapi.nets.tinyFaceDetector.loadFromUri(LOCAL_MODELS_PATH);
+    await faceapi.nets.ageGenderNet.loadFromUri(LOCAL_MODELS_PATH);
+    console.log("Models loaded (local).");
+  } catch (err) {
+    console.warn("Local models failed, using CDN:", err);
+    await faceapi.nets.tinyFaceDetector.loadFromUri(CDN_WEIGHTS);
+    await faceapi.nets.ageGenderNet.loadFromUri(CDN_WEIGHTS);
+    console.log("Models loaded (CDN).");
+  }
+}
+
+async function startCamera() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+    video.srcObject = stream;
+    await video.play();
+    console.log("Camera started");
+  } catch (err) {
+    console.error("Camera error:", err);
+    throw err;
+  }
+}
+
+// ==== detection loop ====
 async function sampleLoop() {
   try {
     const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.4 });
-    const results = await faceapi.detectAllFaces(video, options).withAgeAndGender();
+    const result = await faceapi.detectSingleFace(video, options).withAgeAndGender();
 
-    if (results && results.length > 0) {
-      results.forEach(r => {
-        if (r.detection.score >= CONF_THRESHOLD) {
-          samples.push({ t: Date.now(), age: r.age });
-        }
-      });
+    if (result && result.detection && result.detection.score >= CONF_THRESHOLD) {
+      samples.push({ t: Date.now(), age: result.age });
     } else {
       pruneOldSamples();
     }
 
-    updateColors(results);
+    const evalRes = evaluateSamples();
+    if (evalRes.enough) updateColor(evalRes.avg);
+
   } catch (err) {
-    console.error('sampleLoop error:', err);
+    console.error("sampleLoop error:", err);
   }
 }
 
+// ==== init ====
 async function init() {
-  await waitForFaceApi(10000);
+  try {
+    await waitForFaceApi(10000);
+    console.log("faceapi ready");
+  } catch (err) {
+    console.error("faceapi did not load:", err);
+    return;
+  }
+
   await loadModels();
   await startCamera();
 
@@ -122,6 +144,20 @@ async function init() {
   sampleTimer = setInterval(sampleLoop, SAMPLE_INTERVAL_MS);
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-  init().catch(e => console.error('init failed:', e));
+// ==== PiP button ====
+startBtn.addEventListener("click", async () => {
+  try {
+    if (document.pictureInPictureElement) {
+      await document.exitPictureInPicture();
+    } else {
+      await pipVideo.requestPictureInPicture();
+    }
+  } catch (err) {
+    console.error("PiP error:", err);
+  }
+});
+
+// Auto-run
+document.addEventListener("DOMContentLoaded", () => {
+  init().catch(e => console.error("init failed:", e));
 });
