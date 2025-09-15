@@ -16,9 +16,23 @@ const ctx = canvas.getContext('2d');
 let samples = []; 
 let sampleTimer = null;
 
-// Hide video and canvas from user
+// Hide the video/canvas (used only for detection)
 video.style.display = 'none';
 canvas.style.display = 'none';
+
+// Create PiP-style floating box
+const pipBox = document.createElement('div');
+pipBox.style.position = 'fixed';
+pipBox.style.bottom = '20px';
+pipBox.style.right = '20px';
+pipBox.style.width = '120px';
+pipBox.style.height = '90px';
+pipBox.style.border = '3px solid #000';
+pipBox.style.borderRadius = '8px';
+pipBox.style.backgroundColor = 'white';
+pipBox.style.zIndex = '9999';
+pipBox.style.boxShadow = '0 0 10px rgba(0,0,0,0.5)';
+document.body.appendChild(pipBox);
 
 function waitForFaceApi(timeout = 10000) {
   return new Promise((resolve, reject) => {
@@ -63,13 +77,7 @@ function evaluateSamples() {
   return { enough: true, avg, count: samples.length };
 }
 
-function getBoxColor(age) {
-  if (age < MIN_AGE) return 'lime';    
-  if (age < MID_AGE) return 'yellow';  
-  return 'red';                         
-}
-
-function updateBackground(detections) {
+function updateColors(detections) {
   let bg = 'white';
   if (detections && detections.length > 0) {
     const hasRed = detections.some(r => r.age >= MID_AGE);
@@ -77,7 +85,10 @@ function updateBackground(detections) {
     if (hasRed) bg = 'red';
     else if (hasYellow) bg = 'yellow';
   }
+
+  // Update background + PiP box
   document.body.style.backgroundColor = bg;
+  pipBox.style.backgroundColor = bg;
 }
 
 async function sampleLoop() {
@@ -95,7 +106,7 @@ async function sampleLoop() {
       pruneOldSamples();
     }
 
-    updateBackground(results);
+    updateColors(results);
   } catch (err) {
     console.error('sampleLoop error:', err);
   }
