@@ -13,6 +13,7 @@ const CDN_WEIGHTS = 'https://unpkg.com/face-api.js/weights';
 // DOM
 const pipVideo = document.getElementById("pipVideo");
 const startBtn = document.getElementById("startBtn");
+const debugBox = document.getElementById("debugBox");
 
 // Hidden video + canvas
 const video = document.createElement("video");
@@ -57,6 +58,8 @@ function updateColor(avgAge) {
   } else {
     color = "white";
   }
+  // Debug box sync
+  debugBox.style.background = color;
 }
 
 // ==== PiP canvas drawing ====
@@ -65,7 +68,7 @@ function drawColor() {
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   requestAnimationFrame(drawColor);
 }
-// Force initial paint immediately
+// Force initial paint
 ctx.fillStyle = "white";
 ctx.fillRect(0, 0, canvas.width, canvas.height);
 drawColor();
@@ -152,7 +155,7 @@ startBtn.addEventListener("click", async () => {
     if (document.pictureInPictureElement) {
       await document.exitPictureInPicture();
     } else {
-      // Ensure first frame is painted before PiP
+      // Force one paint before PiP
       ctx.fillStyle = color;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       await pipVideo.requestPictureInPicture();
