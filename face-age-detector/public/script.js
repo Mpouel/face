@@ -2,60 +2,57 @@
 const MIN_AGE = 35;        // âge minimum
 const AGE_HOLD_TIME = 1500; // temps en ms avant de confirmer
 
-let overAgeStart = null;   // quand on a commencé à détecter un âge > MIN_AGE
+let ageSamples = [];
+let startTime = null;
 
-async function startVideo() {
-  const video = document.getElementById("video");
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({ video: {} });
-    video.srcObject = stream;
-  } catch (err) {
-    console.error("Camera error:", err);
-  }
-}
-
-async function run() {
-  console.log("Loading local models...");
-  await faceapi.nets.tinyFaceDetector.loadFromUri("./models");
-  await faceapi.nets.ageGenderNet.loadFromUri("./models");
-
-  console.log("Models loaded. Starting detection...");
-
+async function startAgeCheck() {
   const video = document.getElementById("video");
 
-  setInterval(async () => {
-    const detections = await faceapi
-      .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
-      .withAgeAndGender();
+  // load models
+  await faceapi.nets.tinyFaceDetector.loadFromUri("/models");
+  await faceapi.nets.ageGenderNet.loadFromUri("/models");
 
-    if (detections.length > 0) {
-      const age = detections[0].age;
-      console.log("Detected age:", age.toFixed(0));
+  navigator.mediaDevices.getUserMedia({ video: {} })
+    .then(stream => { video.srcObject = stream });
 
-      if (age > MIN_AGE) {
-        if (!overAgeStart) {
-          // Premier instant où on dépasse l’âge
-          overAgeStart = Date.now();
+  video.addEventListener("play", () => {
+    const canvas = faceapi.createCanvasFromMedia(video);
+    document.body.append(canvas);
+
+    const displaySize = { width: video.width, height: video.height };
+    faceapi.matchDimensions(canvas, displaySize);
+
+    setInterval(async () => {
+      const detections = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions())
+        .withAge()
+        .withGender();
+
+      if (detections) {
+        const resizedDetections = faceapi.resizeResults(detections, displaySize);
+        canvas.getContext("2d").clearRect(0, 0, canvas.width, canvas.height);
+        faceapi.draw.drawDetections(canvas, resizedDetections);
+
+        const age = detections.age;
+        ageSamples.push(age);
+
+        if (!startTime) startTime = Date.now();
+
+        const elapsed = Date.now() - startTime;
+
+        if (elapsed >= CHECK_TIME) {
+          const avgAge = ageSamples.reduce((a, b) => a + b, 0) / ageSamples.length;
+
+          if (avgAge >= MIN_AGE) {
+            alert("Access granted ✅ (Age ~ " + avgAge.toFixed(1) + ")");
+          } else {
+            alert("Access denied ❌ (Age ~ " + avgAge.toFixed(1) + ")");
+          }
+
+          // reset for next check
+          ageSamples = [];
+          startTime = null;
         }
-        // Vérifier si assez de temps écoulé
-        if (Date.now() - overAgeStart >= AGE_HOLD_TIME) {
-          document.body.style.backgroundColor = "red";
-        }
-      } else {
-        // Réinitialiser si l'âge redescend
-        overAgeStart = null;
-        document.body.style.backgroundColor = "white";
       }
-    } else {
-      // Pas de visage → reset
-      overAgeStart = null;
-      document.body.style.backgroundColor = "white";
-    }
-  }, 1000);
+    }, 500);
+  });
 }
-
-document.addEventListener("DOMContentLoaded", () => {
-  startVideo();
-  const video = document.getElementById("video");
-  video.addEventListener("play", run);
-});
