@@ -35,7 +35,6 @@ let sampleTimer = null;
 let color = "white";
 
 // ==== HELPERS ====
-
 function pruneOldSamples() {
   const cutoff = Date.now() - CHECK_TIME_MS;
   samples = samples.filter(s => s.t >= cutoff);
@@ -66,6 +65,9 @@ function drawColor() {
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   requestAnimationFrame(drawColor);
 }
+// Force initial paint immediately
+ctx.fillStyle = "white";
+ctx.fillRect(0, 0, canvas.width, canvas.height);
 drawColor();
 
 // ==== face-api loading ====
@@ -150,6 +152,9 @@ startBtn.addEventListener("click", async () => {
     if (document.pictureInPictureElement) {
       await document.exitPictureInPicture();
     } else {
+      // Ensure first frame is painted before PiP
+      ctx.fillStyle = color;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
       await pipVideo.requestPictureInPicture();
     }
   } catch (err) {
