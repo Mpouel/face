@@ -30,7 +30,7 @@ async function run() {
 
     if (detections.length > 0) {
       const age = detections[0].age;
-      console.log("Detected age:", age);
+      console.log("Detected age:", age.toFixed(0));
 
       if (age > MIN_AGE) {
         if (!overAgeStart) {
