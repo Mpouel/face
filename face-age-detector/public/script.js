@@ -1,6 +1,6 @@
 // Config variables
-const MIN_AGE = 30;        // âge minimum
-const AGE_HOLD_TIME = 3000; // temps en ms avant de confirmer
+const MIN_AGE = 35;        // âge minimum
+const AGE_HOLD_TIME = 1500; // temps en ms avant de confirmer
 
 let overAgeStart = null;   // quand on a commencé à détecter un âge > MIN_AGE
 
