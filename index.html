@@ -2,16 +2,13 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PiP Color Indicator</title>
+  <title>Age Detection with PiP</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <button id="startBtn">Start PiP</button>
-  <div id="debugBox"></div>
-  <video id="pipVideo" autoplay muted playsinline></video>
-
-  <script src="https://unpkg.com/face-api.js"></script>
+  <button id="startBtn">Start Camera & PiP</button>
+  <video id="video" autoplay muted playsinline></video>
+  <canvas id="canvas"></canvas>
   <script src="script.js"></script>
 </body>
 </html>

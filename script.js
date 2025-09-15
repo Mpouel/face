@@ -1,171 +1,64 @@
-// CONFIG
-const MIN_AGE = 30;
-const MID_AGE = 40;
-const CHECK_TIME_MS = 3000;
-const SAMPLE_INTERVAL_MS = 250;
-const CONF_THRESHOLD = 0.6;
-const MIN_COVERAGE_RATIO = 0.6;
-
-// MODEL PATHS
-const LOCAL_MODELS_PATH = './models';
-const CDN_WEIGHTS = 'https://unpkg.com/face-api.js/weights';
-
-// DOM
-const pipVideo = document.getElementById("pipVideo");
 const startBtn = document.getElementById("startBtn");
-const debugBox = document.getElementById("debugBox");
-
-// Hidden video + canvas
-const video = document.createElement("video");
-video.autoplay = true;
-video.muted = true;
-video.playsInline = true;
-
-const canvas = document.createElement("canvas");
-canvas.width = 640;
-canvas.height = 360;
+const video = document.getElementById("video");
+const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 
-// PiP source
-const stream = canvas.captureStream(30);
-pipVideo.srcObject = stream;
+let pipWindow = null;
+let stream;
 
-// Internals
-let samples = [];
-let sampleTimer = null;
-let color = "white";
-
-// ==== HELPERS ====
-function pruneOldSamples() {
-  const cutoff = Date.now() - CHECK_TIME_MS;
-  samples = samples.filter(s => s.t >= cutoff);
+// Fake function: replace with real age detection
+function detectAge() {
+  return Math.floor(Math.random() * 60); // 0–59 years
 }
 
-function evaluateSamples() {
-  pruneOldSamples();
-  const expectedSamples = Math.max(1, Math.ceil(CHECK_TIME_MS / SAMPLE_INTERVAL_MS));
-  const requiredCount = Math.ceil(expectedSamples * MIN_COVERAGE_RATIO);
-  if (samples.length < requiredCount) return { enough: false };
-  const avg = samples.reduce((a, b) => a + b.age, 0) / samples.length;
-  return { enough: true, avg };
-}
-
-function updateColor(avgAge) {
-  if (avgAge >= MID_AGE) {
-    color = "red";
-  } else if (avgAge >= MIN_AGE) {
-    color = "yellow";
-  } else {
-    color = "white";
-  }
-  // Debug box sync
-  debugBox.style.background = color;
-}
-
-// ==== PiP canvas drawing ====
-function drawColor() {
-  ctx.fillStyle = color;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  requestAnimationFrame(drawColor);
-}
-// Force initial paint
-ctx.fillStyle = "white";
-ctx.fillRect(0, 0, canvas.width, canvas.height);
-drawColor();
-
-// ==== face-api loading ====
-function waitForFaceApi(timeout = 10000) {
-  return new Promise((resolve, reject) => {
-    const start = Date.now();
-    (function check() {
-      if (window.faceapi && typeof window.faceapi.nets !== "undefined") return resolve();
-      if (Date.now() - start > timeout) return reject(new Error("faceapi not available"));
-      setTimeout(check, 50);
-    })();
-  });
-}
-
-async function loadModels() {
-  try {
-    console.log("Loading models from", LOCAL_MODELS_PATH);
-    await faceapi.nets.tinyFaceDetector.loadFromUri(LOCAL_MODELS_PATH);
-    await faceapi.nets.ageGenderNet.loadFromUri(LOCAL_MODELS_PATH);
-    console.log("Models loaded (local).");
-  } catch (err) {
-    console.warn("Local models failed, using CDN:", err);
-    await faceapi.nets.tinyFaceDetector.loadFromUri(CDN_WEIGHTS);
-    await faceapi.nets.ageGenderNet.loadFromUri(CDN_WEIGHTS);
-    console.log("Models loaded (CDN).");
-  }
+function getColorForAge(age) {
+  if (age >= 40) return "red";
+  if (age >= 30) return "yellow";
+  return "white";
 }
 
 async function startCamera() {
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
-    video.srcObject = stream;
-    await video.play();
-    console.log("Camera started");
-  } catch (err) {
-    console.error("Camera error:", err);
-    throw err;
-  }
+  stream = await navigator.mediaDevices.getUserMedia({ video: true });
+  video.srcObject = stream;
+
+  await video.play();
+
+  // Match canvas to video size
+  canvas.width = video.videoWidth || 640;
+  canvas.height = video.videoHeight || 480;
+
+  // Start draw loop
+  drawLoop();
 }
 
-// ==== detection loop ====
-async function sampleLoop() {
-  try {
-    const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.4 });
-    const result = await faceapi.detectSingleFace(video, options).withAgeAndGender();
+function drawLoop() {
+  const age = detectAge();
+  const color = getColorForAge(age);
 
-    if (result && result.detection && result.detection.score >= CONF_THRESHOLD) {
-      samples.push({ t: Date.now(), age: result.age });
-    } else {
-      pruneOldSamples();
-    }
+  // Update page background
+  document.body.style.background = color;
 
-    const evalRes = evaluateSamples();
-    if (evalRes.enough) updateColor(evalRes.avg);
+  // Fill canvas with color (PiP source)
+  ctx.fillStyle = color;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  } catch (err) {
-    console.error("sampleLoop error:", err);
-  }
+  requestAnimationFrame(drawLoop);
 }
 
-// ==== init ====
-async function init() {
+async function startPiP() {
   try {
-    await waitForFaceApi(10000);
-    console.log("faceapi ready");
-  } catch (err) {
-    console.error("faceapi did not load:", err);
-    return;
-  }
-
-  await loadModels();
-  await startCamera();
-
-  if (sampleTimer) clearInterval(sampleTimer);
-  samples = [];
-  sampleTimer = setInterval(sampleLoop, SAMPLE_INTERVAL_MS);
-}
-
-// ==== PiP button ====
-startBtn.addEventListener("click", async () => {
-  try {
-    if (document.pictureInPictureElement) {
-      await document.exitPictureInPicture();
-    } else {
-      // Force one paint before PiP
-      ctx.fillStyle = color;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      await pipVideo.requestPictureInPicture();
+    if (!pipWindow) {
+      pipWindow = await canvas.requestPictureInPicture();
+      pipWindow.onleavepictureinpicture = () => {
+        pipWindow = null;
+      };
     }
   } catch (err) {
     console.error("PiP error:", err);
   }
-});
+}
 
-// Auto-run
-document.addEventListener("DOMContentLoaded", () => {
-  init().catch(e => console.error("init failed:", e));
+startBtn.addEventListener("click", async () => {
+  await startCamera();
+  await startPiP();
 });
