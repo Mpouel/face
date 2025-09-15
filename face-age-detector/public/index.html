@@ -21,7 +21,57 @@
     <script>eruda.init();</script>
   </head>
   <body>
-    <video id="video" width="640" height="480" autoplay playsinline muted></video>
-    <script type="module" src="./script.js"></script>
+    <video id="video" width="640" height="480" autoplay muted playsinline></video>
+  
+    <!-- face-api.js depuis CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/face-api.js"></script>
+  
+    <script>
+      const video = document.getElementById("video");
+  
+      async function startVideo() {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+          video.srcObject = stream;
+          console.log("Caméra démarrée");
+        } catch (err) {
+          console.error("Erreur caméra:", err);
+        }
+      }
+  
+      async function loadModels() {
+        // les modèles seront chargés depuis le CDN
+        const MODEL_URL = "https://cdn.jsdelivr.net/npm/face-api.js/models";
+        await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+        await faceapi.nets.ageGenderNet.loadFromUri(MODEL_URL);
+        console.log("Modèles chargés");
+      }
+  
+      async function detect() {
+        const detections = await faceapi
+          .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
+          .withAgeAndGender();
+  
+        if (detections.length > 0) {
+          const age = detections[0].age;
+          console.log("Âge estimé:", age.toFixed(0));
+  
+          if (age > 30) {
+            document.body.style.background = "red";
+          } else {
+            document.body.style.background = "white";
+          }
+        } else {
+          document.body.style.background = "white";
+        }
+      }
+  
+      video.addEventListener("play", () => {
+        setInterval(detect, 1000);
+      });
+  
+      loadModels().then(startVideo);
+    </script>
   </body>
+  </html>
 </html>
