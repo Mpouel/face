@@ -66,52 +66,57 @@ function evaluateSamples() {
   pruneOldSamples();
   const expectedSamples = Math.max(1, Math.ceil(CHECK_TIME_MS / SAMPLE_INTERVAL_MS));
   const requiredCount = Math.ceil(expectedSamples * MIN_COVERAGE_RATIO);
-  if (samples.length < requiredCount) {
-    return {enough: false};
-  }
-  const avg = samples.reduce((a,b)=>a+b.age,0) / samples.length;
-  return {enough:true, avg, count: samples.length};
+  if (samples.length < requiredCount) return { enough: false };
+  const avg = samples.reduce((a, b) => a + b.age, 0) / samples.length;
+  return { enough: true, avg, count: samples.length };
 }
 
-function drawOverlay(detection, age, score) {
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-  if (!detection) return;
-  const box = detection.box || detection.detection?.box;
-  if (!box) return;
-  ctx.lineWidth = 2;
-  ctx.strokeStyle = 'lime';
-  ctx.fillStyle = 'rgba(0,0,0,0.6)';
-  ctx.strokeRect(box.x, box.y, box.width, box.height);
-  const text = `age: ${age.toFixed(1)}  score: ${score.toFixed(2)}`;
-  ctx.font = '16px Arial';
-  const tw = ctx.measureText(text).width;
-  ctx.fillRect(box.x, box.y - 22, tw + 10, 22);
-  ctx.fillStyle = '#fff';
-  ctx.fillText(text, box.x + 5, box.y - 6);
+function drawOverlay(detections) {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  if (!detections || detections.length === 0) return;
+
+  detections.forEach(result => {
+    const box = result.detection.box;
+    const age = result.age;
+    const score = result.detection.score;
+
+    const color = age >= MIN_AGE ? 'red' : 'lime';
+
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = color;
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.strokeRect(box.x, box.y, box.width, box.height);
+
+    const text = `age: ${age.toFixed(1)}  score: ${score.toFixed(2)}`;
+    ctx.font = '16px Arial';
+    const tw = ctx.measureText(text).width;
+    ctx.fillRect(box.x, box.y - 22, tw + 10, 22);
+
+    ctx.fillStyle = '#fff';
+    ctx.fillText(text, box.x + 5, box.y - 6);
+  });
 }
 
 async function sampleLoop() {
   try {
-    // Detect single face with age and gender; use tiny detector options tuned for speed
     const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.4 });
-    const result = await faceapi.detectSingleFace(video, options).withAgeAndGender();
-    if (result && result.detection && result.detection.score >= CONF_THRESHOLD) {
-      const age = result.age;
-      samples.push({ t: Date.now(), age });
-      drawOverlay(result, age, result.detection.score);
+    const results = await faceapi.detectAllFaces(video, options).withAgeAndGender();
+
+    if (results && results.length > 0) {
+      results.forEach(r => {
+        if (r.detection.score >= CONF_THRESHOLD) {
+          samples.push({ t: Date.now(), age: r.age });
+        }
+      });
+      drawOverlay(results);
     } else {
-      // no valid detection -> still prune overlay and samples
       drawOverlay(null);
       pruneOldSamples();
     }
 
-    // Decide
+    // Optional: global check
     const evalRes = evaluateSamples();
-    if (evalRes.enough && evalRes.avg >= MIN_AGE) {
-      document.body.style.backgroundColor = 'red';
-    } else {
-      document.body.style.backgroundColor = 'white';
-    }
+    // document.body.style.backgroundColor = (evalRes.enough && evalRes.avg >= MIN_AGE) ? 'red' : 'white';
   } catch (err) {
     console.error('sampleLoop error:', err);
   }
@@ -129,13 +134,11 @@ async function init() {
   await loadModels();
   await startCamera();
 
-  // start sampling at SAMPLE_INTERVAL_MS
   if (sampleTimer) clearInterval(sampleTimer);
   samples = [];
   sampleTimer = setInterval(sampleLoop, SAMPLE_INTERVAL_MS);
 }
 
-// auto-run
 document.addEventListener('DOMContentLoaded', () => {
   init().catch(e => console.error('init failed:', e));
 });
