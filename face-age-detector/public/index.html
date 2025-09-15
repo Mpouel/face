@@ -1,38 +1,69 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Debug Face Detection</title>
+  <meta charset="UTF-8" />
+  <title>Face Age Detection</title>
+  <style>
+    body {
+      background: white;
+      text-align: center;
+    }
+    video {
+      margin-top: 20px;
+      border: 2px solid black;
+    }
+  </style>
 </head>
 <body>
   <h1>Test Debug</h1>
-  <video id="video" width="320" height="240" autoplay muted playsinline></video>
+  <video id="video" width="400" height="300" autoplay muted></video>
 
-  <!-- Eruda -->
+  <!-- Debug console -->
   <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
-  <script>
-    eruda.init();
-    eruda.show();
-    console.log("✅ Eruda chargé");
-  </script>
+  <script>eruda.init();</script>
 
-  <!-- Face-api -->
-  <script src="https://cdn.jsdelivr.net/npm/face-api.js/dist/face-api.min.js"></script>
-  <script>
-    console.log("faceapi dispo ?", typeof faceapi);
+  <!-- Face API -->
+  <script src="https://cdn.jsdelivr.net/npm/face-api.js"></script>
 
+  <!-- Main Script -->
+  <script>
     const video = document.getElementById("video");
 
     async function startVideo() {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        const stream = await navigator.mediaDevices.getUserMedia({ video: {} });
         video.srcObject = stream;
-        console.log("✅ Caméra démarrée");
       } catch (err) {
-        console.error("❌ Erreur caméra:", err);
+        console.error("Camera error:", err);
       }
     }
 
+    async function run() {
+      console.log("Loading models...");
+      await faceapi.nets.tinyFaceDetector.loadFromUri("https://cdn.jsdelivr.net/npm/face-api.js/weights");
+      await faceapi.nets.ageGenderNet.loadFromUri("https://cdn.jsdelivr.net/npm/face-api.js/weights");
+
+      console.log("Models loaded. Starting detection...");
+
+      setInterval(async () => {
+        const detections = await faceapi
+          .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
+          .withAgeAndGender();
+
+        if (detections.length > 0) {
+          const age = detections[0].age;
+          console.log("Detected age:", age);
+
+          if (age > 30) {
+            document.body.style.backgroundColor = "red";
+          } else {
+            document.body.style.backgroundColor = "white";
+          }
+        }
+      }, 1000);
+    }
+
+    video.addEventListener("play", run);
     startVideo();
   </script>
 </body>
