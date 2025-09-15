@@ -1,4 +1,8 @@
-let teacherAge = 35
+// Config variables
+const MIN_AGE = 30;        // âge minimum
+const AGE_HOLD_TIME = 3000; // temps en ms avant de confirmer
+
+let overAgeStart = null;   // quand on a commencé à détecter un âge > MIN_AGE
 
 async function startVideo() {
   const video = document.getElementById("video");
@@ -18,6 +22,7 @@ async function run() {
   console.log("Models loaded. Starting detection...");
 
   const video = document.getElementById("video");
+
   setInterval(async () => {
     const detections = await faceapi
       .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
@@ -27,11 +32,24 @@ async function run() {
       const age = detections[0].age;
       console.log("Detected age:", age);
 
-      if (age > teacherAge) {
-        document.body.style.backgroundColor = "red";
+      if (age > MIN_AGE) {
+        if (!overAgeStart) {
+          // Premier instant où on dépasse l’âge
+          overAgeStart = Date.now();
+        }
+        // Vérifier si assez de temps écoulé
+        if (Date.now() - overAgeStart >= AGE_HOLD_TIME) {
+          document.body.style.backgroundColor = "red";
+        }
       } else {
+        // Réinitialiser si l'âge redescend
+        overAgeStart = null;
         document.body.style.backgroundColor = "white";
       }
+    } else {
+      // Pas de visage → reset
+      overAgeStart = null;
+      document.body.style.backgroundColor = "white";
     }
   }, 1000);
 }
