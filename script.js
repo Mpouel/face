@@ -1,6 +1,6 @@
-// CONFIG (tweak these)
+// CONFIG
 const MIN_AGE = 30;                
-const MID_AGE = 40;                // middle threshold for yellow
+const MID_AGE = 40;                
 const CHECK_TIME_MS = 3000;        
 const SAMPLE_INTERVAL_MS = 250;    
 const CONF_THRESHOLD = 0.6;        
@@ -15,6 +15,10 @@ const canvas = document.getElementById('overlay');
 const ctx = canvas.getContext('2d');
 let samples = []; 
 let sampleTimer = null;
+
+// Hide video and canvas from user
+video.style.display = 'none';
+canvas.style.display = 'none';
 
 function waitForFaceApi(timeout = 10000) {
   return new Promise((resolve, reject) => {
@@ -60,34 +64,20 @@ function evaluateSamples() {
 }
 
 function getBoxColor(age) {
-  if (age < MIN_AGE) return 'lime';    // under 30
-  if (age < MID_AGE) return 'yellow';  // 30–40
-  return 'red';                         // over 40
+  if (age < MIN_AGE) return 'lime';    
+  if (age < MID_AGE) return 'yellow';  
+  return 'red';                         
 }
 
-function drawOverlay(detections) {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  if (!detections || detections.length === 0) return;
-
-  detections.forEach(result => {
-    const box = result.detection.box;
-    const age = result.age;
-    const score = result.detection.score;
-    const color = getBoxColor(age);
-
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = color;
-    ctx.fillStyle = 'rgba(0,0,0,0.6)';
-    ctx.strokeRect(box.x, box.y, box.width, box.height);
-
-    const text = `age: ${age.toFixed(1)}  score: ${score.toFixed(2)}`;
-    ctx.font = '16px Arial';
-    const tw = ctx.measureText(text).width;
-    ctx.fillRect(box.x, box.y - 22, tw + 10, 22);
-
-    ctx.fillStyle = '#fff';
-    ctx.fillText(text, box.x + 5, box.y - 6);
-  });
+function updateBackground(detections) {
+  let bg = 'white';
+  if (detections && detections.length > 0) {
+    const hasRed = detections.some(r => r.age >= MID_AGE);
+    const hasYellow = detections.some(r => r.age >= MIN_AGE && r.age < MID_AGE);
+    if (hasRed) bg = 'red';
+    else if (hasYellow) bg = 'yellow';
+  }
+  document.body.style.backgroundColor = bg;
 }
 
 async function sampleLoop() {
@@ -101,11 +91,11 @@ async function sampleLoop() {
           samples.push({ t: Date.now(), age: r.age });
         }
       });
-      drawOverlay(results);
     } else {
-      drawOverlay(null);
       pruneOldSamples();
     }
+
+    updateBackground(results);
   } catch (err) {
     console.error('sampleLoop error:', err);
   }
