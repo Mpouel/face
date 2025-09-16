@@ -1,24 +1,29 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Face Age Detector</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <h1>Face Age Detector</h1>
+
   <div id="videoWrapper">
-    <video id="video" autoplay muted></video>
+    <!-- Hidden camera feed (not displayed directly) -->
+    <video id="video" autoplay muted playsinline style="display:none"></video>
+
+    <!-- Main visible canvas (video + overlay drawn here) -->
     <canvas id="overlay"></canvas>
   </div>
+
   <div id="status">Initializing...</div>
 
   <!-- face-api.js -->
   <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
   <script defer src="script.js"></script>
 
-  <!-- eruda debug -->
+  <!-- eruda debug console -->
   <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
   <script>
     eruda.init();
