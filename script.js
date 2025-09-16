@@ -63,7 +63,9 @@ async function onPlay() {
     // Draw label
     ctx.fillStyle = getAgeColor(age);
     ctx.font = "16px Arial";
-    ctx.fillText(`${Math.round(age)} yrs (${gender})`, box.x, box.y - 5);
+    let text = `${Math.round(age)} yrs (${gender})`
+    ctx.fillText(text, box.x, box.y - 5);
+    console.log(text)
 
     // Change background color
     document.body.style.background = getAgeColor(age);
