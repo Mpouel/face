@@ -152,13 +152,22 @@
 
     async function startPipColor(){
       if(!stream) return alert('Start camera first');
+
       colorPipe.srcObject = colorStream();
+
+      // WAIT for metadata before play & PiP
+      await new Promise(resolve => {
+        colorPipe.onloadedmetadata = () => resolve();
+      });
+
       await colorPipe.play().catch(()=>{});
+
       sampling = true;
-      samplerInterval = setInterval(()=>{
+      samplerInterval = setInterval(() => {
         const avg = computeAverageColor();
         drawColorRect(avg);
       }, 100);
+
       try{
         await colorPipe.requestPictureInPicture();
         startPipBtn.disabled = true;
