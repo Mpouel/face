@@ -67,7 +67,7 @@
     </div>
 
     <!-- Hidden video for PiP (must not be display:none) -->
-<video id="colorPipe" autoplay muted playsinline style="display:none"></video>
+    <video id="colorPipe" autoplay muted playsinline style="display:none"></video>
 
 
     <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
@@ -160,8 +160,18 @@
         async function startPipColor() {
             if (!stream) return alert('Start camera first');
 
-            colorPipe.srcObject = hiddenCanvas.captureStream(60);
-            await colorPipe.play();
+            // Assigner une seule fois
+            if (!colorPipe.srcObject) {
+                colorPipe.srcObject = hiddenCanvas.captureStream(60);
+            }
+
+            // Attendre que les métadonnées soient dispo
+            await new Promise(resolve => {
+                if (colorPipe.readyState >= 1) resolve();
+                else colorPipe.onloadedmetadata = () => resolve();
+            });
+
+            await colorPipe.play(); // Maintenant c'est sûr que ça ne sera pas interrompu
 
             sampling = true;
             samplerInterval = setInterval(() => {
@@ -171,7 +181,7 @@
 
             try {
                 await colorPipe.requestPictureInPicture();
-                startPipBtn.disabled = false;
+                startPipBtn.disabled = true;
                 stopPipBtn.disabled = false;
             } catch (err) {
                 console.error('PiP failed', err);
