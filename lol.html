@@ -1,72 +1,111 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Face Age Detector with PiP</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Face Age Detector + Realtime PiP Color</title>
   <style>
-    body { background: black; color: white; text-align: center; }
-    video { display: none; } /* hide raw video */
-    canvas { display: inline-block; border: 2px solid white; }
-    button { margin-top: 20px; padding: 10px; font-size: 16px; }
+    body{font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial;display:flex;flex-direction:column;align-items:center;gap:12px;padding:18px;background:#000;color:#fff}
+    #videoWrapper{position:relative;display:inline-block}
+    video#video{width:640px;height:auto;background:#000}
+    canvas#overlay{position:absolute;left:0;top:0}
+    #controls{display:flex;gap:8px;margin-top:10px}
+    button{padding:8px 12px;border-radius:6px;border:1px solid #ccc;background:#f6f6f6;color:#000}
   </style>
 </head>
 <body>
-  <h1>Face Age Detector</h1>
-  <video id="video" autoplay playsinline></video>
-  <canvas id="canvas" width="640" height="480"></canvas>
-  <br>
-  <button id="pipButton">Toggle PiP</button>
-  <div id="status">Loading models...</div>
+  <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
+  <script>eruda.init();</script>
 
-  <!-- face-api -->
+  <div id="videoWrapper">
+    <video id="video" autoplay muted playsinline></video>
+    <canvas id="overlay"></canvas>
+  </div>
+
+  <div id="status">Initializing...</div>
+
+  <div id="controls">
+    <button id="start-pip" disabled>Start PiP (color)</button>
+    <button id="stop-pip" disabled>Stop PiP</button>
+  </div>
+
+  <!-- Hidden video for PiP color -->
+  <video id="colorPipe" autoplay playsinline muted style="display:none"></video>
+
+  <!-- face-api.js -->
   <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
 
   <script>
-    const video = document.getElementById("video");
-    const canvas = document.getElementById("canvas");
-    const ctx = canvas.getContext("2d");
-    const statusEl = document.getElementById("status");
-    const pipButton = document.getElementById("pipButton");
+    const video = document.getElementById('video');
+    const overlay = document.getElementById('overlay');
+    const ctx = overlay.getContext('2d');
+    const statusEl = document.getElementById('status');
 
-    const GREEN = "#00FF00", YELLOW = "#FFFF00", RED = "#FF0000";
-    const getAgeColor = (age) => age < 30 ? GREEN : age < 40 ? YELLOW : RED;
+    const startPipBtn = document.getElementById('start-pip');
+    const stopPipBtn = document.getElementById('stop-pip');
+    const colorPipe = document.getElementById('colorPipe');
+
+    // Colors
+    const GREEN = "#00FF00";
+    const YELLOW = "#FFFF00";
+    const RED = "#FF0000";
+
+    let stream = null;
+    let sampling = false;
+    let samplerInterval = null;
+
+    const hiddenCanvas = document.createElement('canvas');
+    const hiddenCtx = hiddenCanvas.getContext('2d');
+
+    const colorStream = () => hiddenCanvas.captureStream(30);
 
     async function startCamera() {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        stream = await navigator.mediaDevices.getUserMedia({ video: {} });
         video.srcObject = stream;
-        await video.play();
         statusEl.innerText = "✅ Camera started.";
+
+        hiddenCanvas.width = 64;
+        hiddenCanvas.height = 36;
       } catch (err) {
-        console.error("Camera error:", err);
+        console.error("Error starting camera:", err);
         statusEl.innerText = "❌ Camera failed.";
       }
     }
 
     async function loadModels() {
+      statusEl.innerText = "Loading models...";
       try {
         await faceapi.nets.tinyFaceDetector.loadFromUri("/models");
         await faceapi.nets.ageGenderNet.loadFromUri("/models");
-        statusEl.innerText = "✅ Models loaded.";
+        statusEl.innerText = "✅ Models loaded successfully.";
+        startPipBtn.disabled = false;
       } catch (err) {
-        console.error("Model error:", err);
-        statusEl.innerText = "❌ Models failed to load.";
+        console.error("Error loading models:", err);
+        statusEl.innerText = "❌ Could not load models. Ensure /models exists.";
       }
     }
 
+    function getAgeColor(age) {
+      if (age < 30) return GREEN;
+      if (age < 40) return YELLOW;
+      return RED;
+    }
+
     async function onPlay() {
-      if (video.paused || video.ended) return setTimeout(onPlay, 200);
+      if (video.paused || video.ended) {
+        return setTimeout(() => onPlay());
+      }
 
       const options = new faceapi.TinyFaceDetectorOptions();
-      const detections = await faceapi.detectAllFaces(video, options).withAgeAndGender();
+      const detections = await faceapi
+        .detectAllFaces(video, options)
+        .withAgeAndGender();
 
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
+      overlay.width = video.videoWidth;
+      overlay.height = video.videoHeight;
+      ctx.clearRect(0, 0, overlay.width, overlay.height);
 
-      // draw video
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-      // draw detections
       detections.forEach(det => {
         const { age, gender, detection } = det;
         const box = detection.box;
@@ -77,29 +116,81 @@
 
         ctx.fillStyle = getAgeColor(age);
         ctx.font = "16px Arial";
-        ctx.fillText(`${Math.round(age)} yrs (${gender})`, box.x, box.y - 5);
+        let text = `${Math.round(age)} yrs (${gender})`;
+        ctx.fillText(text, box.x, box.y - 5);
+
+        document.body.style.background = getAgeColor(age);
       });
 
       requestAnimationFrame(onPlay);
     }
 
-    pipButton.addEventListener("click", async () => {
-      try {
-        const stream = canvas.captureStream();
-        const pipVideo = document.createElement("video");
-        pipVideo.srcObject = stream;
-        pipVideo.muted = true;
-        await pipVideo.play();
-        await pipVideo.requestPictureInPicture();
-      } catch (err) {
-        console.error("PiP error:", err);
-      }
-    });
+    video.addEventListener('play', onPlay);
 
+    // --- PiP Color Handling ---
+    function computeAverageColor() {
+      try {
+        hiddenCtx.drawImage(video, 0, 0, hiddenCanvas.width, hiddenCanvas.height);
+        const data = hiddenCtx.getImageData(0,0,hiddenCanvas.width,hiddenCanvas.height).data;
+        let r=0,g=0,b=0, count=0;
+        for(let i=0;i<data.length;i+=4){
+          r += data[i];
+          g += data[i+1];
+          b += data[i+2];
+          count++;
+        }
+        r = Math.round(r/count);
+        g = Math.round(g/count);
+        b = Math.round(b/count);
+        return {r,g,b};
+      }catch(e){
+        return {r:0,g:0,b:0};
+      }
+    }
+
+    function drawColorRect({r,g,b}){
+      hiddenCtx.fillStyle = `rgb(${r},${g},${b})`;
+      hiddenCtx.fillRect(0,0,hiddenCanvas.width,hiddenCanvas.height);
+    }
+
+    async function startPipColor(){
+      if(!stream) return alert('Start camera first');
+      colorPipe.srcObject = colorStream();
+      await colorPipe.play().catch(()=>{});
+      sampling = true;
+      samplerInterval = setInterval(()=>{
+        const avg = computeAverageColor();
+        drawColorRect(avg);
+      }, 100);
+      try{
+        await colorPipe.requestPictureInPicture();
+        startPipBtn.disabled = true;
+        stopPipBtn.disabled = false;
+      }catch(err){
+        console.error('PiP failed', err);
+        stopSampling();
+      }
+    }
+
+    function stopSampling(){
+      sampling = false;
+      if(samplerInterval) { clearInterval(samplerInterval); samplerInterval=null; }
+      if(document.pictureInPictureElement){
+        document.exitPictureInPicture().catch(()=>{});
+      }
+      startPipBtn.disabled = false;
+      stopPipBtn.disabled = true;
+    }
+
+    // Events
+    startPipBtn.addEventListener('click', startPipColor);
+    stopPipBtn.addEventListener('click', stopSampling);
+    document.addEventListener('leavepictureinpicture', stopSampling);
+
+    // Init
     (async () => {
       await loadModels();
       await startCamera();
-      video.addEventListener("play", onPlay);
     })();
   </script>
 </body>
