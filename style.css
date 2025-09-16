@@ -8,6 +8,6 @@ body {
   }
   
   #video, #canvas {
-    display: none; /* cacher vidéo et canvas */
+    display: none; /* keep hidden */
   }
   
