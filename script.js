@@ -28,10 +28,10 @@ async function startCamera() {
 async function loadModels() {
   statusEl.innerText = "Loading models...";
   try {
+    // Only the models we actually use
     await faceapi.nets.tinyFaceDetector.loadFromUri("/models");
     await faceapi.nets.ageGenderNet.loadFromUri("/models");
-    await faceapi.nets.faceLandmark68Net.loadFromUri("/models");
-    await faceapi.nets.faceRecognitionNet.loadFromUri("/models");
+
     statusEl.innerText = "✅ Models loaded successfully.";
   } catch (err) {
     console.error("Error loading models:", err);
@@ -58,7 +58,7 @@ async function onPlay() {
     .detectAllFaces(video, options)
     .withAgeAndGender();
 
-  // Draw the camera frame first
+  // Draw the camera feed
   ctx.drawImage(video, 0, 0, overlay.width, overlay.height);
 
   // Draw detections
@@ -74,17 +74,16 @@ async function onPlay() {
     ctx.font = "16px Arial";
     ctx.fillText(`${Math.round(age)} yrs (${gender})`, box.x, box.y - 5);
 
-    // Background feedback
+    // Feedback background
     document.body.style.background = getAgeColor(age);
   });
 
   requestAnimationFrame(onPlay);
 }
 
-// Pipe canvas into PiP hidden video
+// ---- PiP setup ----
 const stream = overlay.captureStream();
 pipVideo.srcObject = stream;
-pipVideo.play();
 
 // Add a PiP toggle button dynamically
 const pipBtn = document.createElement('button');
@@ -93,8 +92,15 @@ pipBtn.style.position = "fixed";
 pipBtn.style.top = "10px";
 pipBtn.style.right = "10px";
 pipBtn.style.zIndex = 1000;
+pipBtn.disabled = true; // wait until ready
 document.body.appendChild(pipBtn);
 
+// Enable PiP only when pipVideo has metadata
+pipVideo.addEventListener('loadedmetadata', () => {
+  pipBtn.disabled = false;
+});
+
+// Handle PiP button
 pipBtn.addEventListener('click', async () => {
   try {
     if (document.pictureInPictureElement) {
