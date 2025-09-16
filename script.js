@@ -1,156 +1,63 @@
-// script.js
-// Full version with debug + age detection + PiP + color logic
-// Requires: face-api.js and models/ folder with weights
+const statusDiv = document.getElementById("status");
 
-// DOM elements
-const startBtn = document.getElementById("startBtn");
-const video = document.getElementById("video");
-const canvas = document.getElementById("overlay");
-const ageDisplay = document.getElementById("ageDisplay");
+// Créer la vidéo (cachée)
+const video = document.createElement("video");
+video.setAttribute("autoplay", true);
+video.setAttribute("muted", true);
+video.setAttribute("playsinline", true);
+document.body.appendChild(video);
+video.style.display = "none";
 
-let stream = null;
-let analyzing = false;
-
-
-// Initialization
-
-
-async function loadModels() {
+async function init() {
   try {
-    console.log("Loading models...");
+    statusDiv.innerText = "Loading models...";
+
     await faceapi.nets.tinyFaceDetector.loadFromUri("/models");
     await faceapi.nets.ageGenderNet.loadFromUri("/models");
-    console.log("✅ Models loaded successfully.");
-  } catch (err) {
-    console.error("❌ Failed to load models:", err);
-    alert("Could not load models. Make sure /models folder exists.");
-  }
-}
 
-
-// Start camera
-
-
-async function startCamera() {
-  try {
-    console.log("Requesting camera...");
-    stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+    statusDiv.innerText = "Requesting camera...";
+    const stream = await navigator.mediaDevices.getUserMedia({ video: {} });
     video.srcObject = stream;
-    await video.play();
-    console.log("✅ Camera started.");
+
+    video.onloadedmetadata = () => {
+      video.play();
+      statusDiv.innerText = "Analyzing...";
+      analyzeLoop();
+    };
   } catch (err) {
-    console.error("❌ Camera error:", err);
-    alert("Could not access the camera.");
+    console.error("Init error:", err);
+    statusDiv.innerText = "Error initializing.";
   }
 }
-
-
-// Picture-in-Picture
-
-
-async function enablePiP() {
-  try {
-    if (document.pictureInPictureElement) {
-      await document.exitPictureInPicture();
-      console.log("Exited PiP.");
-    } else {
-      await video.requestPictureInPicture();
-      console.log("Entered PiP.");
-    }
-  } catch (err) {
-    console.error("❌ PiP error:", err);
-  }
-}
-
-
-// Age detection
-
 
 function getColorForAge(age) {
-  if (age >= 40) return "red";
-  if (age >= 30) return "yellow";
-  return "white";
+  if (age < 30) return "green";
+  if (age < 40) return "yellow";
+  return "red";
 }
 
 async function analyzeLoop() {
-  if (!analyzing) return;
-
   try {
-    const detections = await faceapi
+    const detection = await faceapi
       .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions())
       .withAgeAndGender();
 
-    if (detections && detections.age) {
-      const age = Math.round(detections.age);
+    if (detection && detection.age) {
+      const age = Math.round(detection.age);
       const color = getColorForAge(age);
 
       document.body.style.backgroundColor = color;
-
-      ageDisplay.innerText = `Age: ${age} (${color})`;
-
-      // Debug log
-      console.log(`Detected age: ${age}, bg=${color}`);
-
-      // Draw box on canvas
-      const dims = faceapi.matchDimensions(canvas, video, true);
-      const resizedDetections = faceapi.resizeResults(detections, dims);
-      canvas.getContext("2d").clearRect(0, 0, canvas.width, canvas.height);
-      faceapi.draw.drawDetections(canvas, resizedDetections);
+      statusDiv.innerText = `Detected age: ${age} → ${color.toUpperCase()}`;
     } else {
-      ageDisplay.innerText = "No face detected";
-      document.body.style.backgroundColor = "white";
+      statusDiv.innerText = "No face detected...";
+      document.body.style.backgroundColor = "black";
     }
   } catch (err) {
-    console.error("❌ Detection error:", err);
+    console.error("Loop error:", err);
+    statusDiv.innerText = "Error analyzing.";
   }
 
   requestAnimationFrame(analyzeLoop);
 }
 
-
-// Button handler
-
-
-startBtn.addEventListener("click", async () => {
-  if (analyzing) {
-    console.log("Stopping analysis...");
-    analyzing = false;
-    startBtn.innerText = "Start";
-    return;
-  }
-
-  console.log("Initializing...");
-  await loadModels();
-  await startCamera();
-
-  // Hide video and canvas if you want only PiP
-  video.style.display = "none";
-  canvas.style.display = "none";
-
-  analyzing = true;
-  startBtn.innerText = "Stop";
-
-  analyzeLoop();
-  enablePiP();
-});
-
-
-// Extra logging (for debugging)
-
-window.addEventListener("error", (e) => {
-  console.error("Global Error:", e.message);
-});
-
-window.addEventListener("unhandledrejection", (e) => {
-  console.error("Unhandled Promise Rejection:", e.reason);
-});
-
-
-// Helper: resize canvas with video
-
-
-video.addEventListener("loadedmetadata", () => {
-  canvas.width = video.videoWidth;
-  canvas.height = video.videoHeight;
-  console.log(`Canvas resized: ${canvas.width}x${canvas.height}`);
-});
+init();

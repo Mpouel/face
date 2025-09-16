@@ -3,33 +3,37 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Face Age Detector</title>
+  <title>Age Color Detector</title>
   <style>
     body {
-      text-align: center;
+      margin: 0;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       font-family: Arial, sans-serif;
+      font-size: 2rem;
+      color: white;
+      transition: background-color 0.5s ease;
     }
-    #video, #overlay {
-      max-width: 80%;
-      border: 1px solid black;
+    #status {
+      z-index: 10;
+      background: rgba(0, 0, 0, 0.4);
+      padding: 20px;
+      border-radius: 10px;
     }
-    #ageDisplay {
-      font-size: 20px;
-      font-weight: bold;
-      margin-top: 10px;
+    /* cacher la cam */
+    video {
+      display: none;
     }
   </style>
 </head>
 <body>
-  <button id="startBtn">Start</button>
-  <br /><br />
-  <video id="video" autoplay muted playsinline></video>
-  <canvas id="overlay"></canvas>
-  <div id="ageDisplay">Waiting...</div>
+  <div id="status">Initializing...</div>
 
   <!-- face-api.js -->
   <script defer src="https://cdn.jsdelivr.net/npm/face-api.js"></script>
-  <!-- ton JS -->
+  <!-- ton script -->
   <script defer src="script.js"></script>
 </body>
 </html>
