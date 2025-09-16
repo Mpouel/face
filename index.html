@@ -10,15 +10,12 @@
   <video id="video" autoplay muted playsinline></video>
   <canvas id="canvas"></canvas>
 
-  <!-- face-api.js -->
-  <script src="https://cdn.jsdelivr.net/npm/face-api.js"></script>
-
-  <!-- eruda debugger -->
+  <!-- Eruda debugger -->
   <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
-  <script>
-    eruda.init();
-    console.log("✅ Eruda loadeds");
-  </script>
+  <script>eruda.init();</script>
+
+  <!-- face-api.js must be loaded BEFORE your script -->
+  <script src="https://cdn.jsdelivr.net/npm/face-api.js/dist/face-api.min.js"></script>
 
   <!-- your logic -->
   <script src="script.js"></script>

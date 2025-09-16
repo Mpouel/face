@@ -7,11 +7,10 @@ let pipWindow = null;
 let samples = [];
 
 // CONFIG
-const MIN_SAMPLES = 5;          // require at least 5 samples
-const MAX_SAMPLES = 20;         // keep a rolling window of 20
-const UPDATE_INTERVAL = 300;    // ms between updates
+const MIN_SAMPLES = 5;
+const MAX_SAMPLES = 20;
+const UPDATE_INTERVAL = 300;
 
-// Age → color mapping
 function getColorForAge(age) {
   if (age >= 40) return "red";
   if (age >= 30) return "yellow";
@@ -19,8 +18,11 @@ function getColorForAge(age) {
 }
 
 async function loadModels() {
-  await faceapi.nets.tinyFaceDetector.loadFromUri("./models");
-  await faceapi.nets.ageGenderNet.loadFromUri("./models");
+  console.log("Loading models...");
+  // load from CDN (works out of the box)
+  await faceapi.nets.tinyFaceDetector.loadFromUri("https://cdn.jsdelivr.net/npm/face-api.js/weights");
+  await faceapi.nets.ageGenderNet.loadFromUri("https://cdn.jsdelivr.net/npm/face-api.js/weights");
+  console.log("✅ Models loaded.");
 }
 
 async function startCamera() {
@@ -30,6 +32,7 @@ async function startCamera() {
 
   canvas.width = video.videoWidth || 640;
   canvas.height = video.videoHeight || 480;
+  console.log("✅ Camera started");
 }
 
 function addSample(age) {
@@ -39,8 +42,7 @@ function addSample(age) {
 
 function getAverageAge() {
   if (samples.length < MIN_SAMPLES) return null;
-  const sum = samples.reduce((a, b) => a + b, 0);
-  return sum / samples.length;
+  return samples.reduce((a, b) => a + b, 0) / samples.length;
 }
 
 function drawColor(color) {
@@ -55,6 +57,7 @@ async function analyzeLoop() {
 
   if (result && result.age) {
     addSample(result.age);
+    console.log("Detected age:", result.age.toFixed(1));
   }
 
   const avg = getAverageAge();
@@ -71,9 +74,8 @@ async function startPiP() {
   try {
     if (!pipWindow) {
       pipWindow = await canvas.requestPictureInPicture();
-      pipWindow.onleavepictureinpicture = () => {
-        pipWindow = null;
-      };
+      pipWindow.onleavepictureinpicture = () => (pipWindow = null);
+      console.log("✅ PiP started");
     }
   } catch (err) {
     console.error("PiP error:", err);
@@ -81,8 +83,13 @@ async function startPiP() {
 }
 
 startBtn.addEventListener("click", async () => {
-  await loadModels();
-  await startCamera();
-  analyzeLoop();
-  await startPiP();
+  try {
+    console.log("▶ Button clicked");
+    await loadModels();
+    await startCamera();
+    analyzeLoop();
+    await startPiP();
+  } catch (err) {
+    console.error("Init error:", err);
+  }
 });
