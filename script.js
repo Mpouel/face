@@ -1,75 +1,83 @@
-const video = document.getElementById("video");
-const canvas = document.getElementById("overlay");
-const statusDiv = document.getElementById("status");
-const ctx = canvas.getContext("2d");
+const video = document.getElementById('video');
+const overlay = document.getElementById('overlay');
+const ctx = overlay.getContext('2d');
+const statusEl = document.getElementById('status');
 
-async function init() {
+// Colors
+const GREEN = "#00FF00";
+const YELLOW = "#FFFF00";
+const RED = "#FF0000";
+
+async function startCamera() {
   try {
-    statusDiv.innerText = "Loading models...";
-    await faceapi.nets.tinyFaceDetector.loadFromUri("/models");
-    await faceapi.nets.ageGenderNet.loadFromUri("/models");
-    statusDiv.innerText = "Starting camera...";
-
     const stream = await navigator.mediaDevices.getUserMedia({ video: {} });
     video.srcObject = stream;
-
-    video.onloadedmetadata = () => {
-      video.play();
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      statusDiv.innerText = "Analyzing...";
-      analyzeLoop();
-    };
+    statusEl.innerText = "✅ Camera started.";
   } catch (err) {
-    console.error("Init error:", err);
-    statusDiv.innerText = "Error initializing.";
+    console.error("Error starting camera:", err);
+    statusEl.innerText = "❌ Camera failed.";
   }
 }
 
-function getColorForAge(age) {
-  if (age < 30) return "lime";
-  if (age < 40) return "yellow";
-  return "red";
-}
-
-async function analyzeLoop() {
+async function loadModels() {
+  statusEl.innerText = "Loading models...";
   try {
-    const detections = await faceapi
-      .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
-      .withAgeAndGender();
-
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    if (detections.length > 0) {
-      detections.forEach(det => {
-        const box = det.detection.box;
-        const age = Math.round(det.age);
-        const color = getColorForAge(age);
-
-        // draw box
-        ctx.lineWidth = 3;
-        ctx.strokeStyle = color;
-        ctx.strokeRect(box.x, box.y, box.width, box.height);
-
-        // draw label
-        const text = `Age: ${age}`;
-        ctx.font = "16px Arial";
-        const textWidth = ctx.measureText(text).width;
-        ctx.fillStyle = "rgba(0,0,0,0.5)";
-        ctx.fillRect(box.x, box.y - 22, textWidth + 10, 22);
-        ctx.fillStyle = "white";
-        ctx.fillText(text, box.x + 5, box.y - 6);
-      });
-
-      statusDiv.innerText = `Faces detected: ${detections.length}`;
-    } else {
-      statusDiv.innerText = "No face detected...";
-    }
+    await faceapi.nets.tinyFaceDetector.loadFromUri("/models");
+    await faceapi.nets.ageGenderNet.loadFromUri("/models");
+    await faceapi.nets.faceLandmark68Net.loadFromUri("/models");
+    await faceapi.nets.faceRecognitionNet.loadFromUri("/models");
+    statusEl.innerText = "✅ Models loaded successfully.";
   } catch (err) {
-    console.error("Loop error:", err);
+    console.error("Error loading models:", err);
+    statusEl.innerText = "❌ Could not load models. Ensure /models exists.";
   }
-
-  requestAnimationFrame(analyzeLoop);
 }
 
-init();
+function getAgeColor(age) {
+  if (age < 30) return GREEN;
+  if (age < 40) return YELLOW;
+  return RED;
+}
+
+async function onPlay() {
+  if (video.paused || video.ended) {
+    return setTimeout(() => onPlay());
+  }
+
+  const options = new faceapi.TinyFaceDetectorOptions();
+  const detections = await faceapi
+    .detectAllFaces(video, options)
+    .withAgeAndGender();
+
+  overlay.width = video.videoWidth;
+  overlay.height = video.videoHeight;
+  ctx.clearRect(0, 0, overlay.width, overlay.height);
+
+  detections.forEach(det => {
+    const { age, gender, detection } = det;
+    const box = detection.box;
+
+    // Draw box
+    ctx.strokeStyle = getAgeColor(age);
+    ctx.lineWidth = 3;
+    ctx.strokeRect(box.x, box.y, box.width, box.height);
+
+    // Draw label
+    ctx.fillStyle = getAgeColor(age);
+    ctx.font = "16px Arial";
+    ctx.fillText(`${Math.round(age)} yrs (${gender})`, box.x, box.y - 5);
+
+    // Change background color
+    document.body.style.background = getAgeColor(age);
+  });
+
+  requestAnimationFrame(onPlay);
+}
+
+video.addEventListener('play', onPlay);
+
+// Init
+(async () => {
+  await loadModels();
+  await startCamera();
+})();
