@@ -170,7 +170,7 @@
 
             try {
                 await colorPipe.requestPictureInPicture();
-                startPipBtn.disabled = true;
+                startPipBtn.disabled = false;
                 stopPipBtn.disabled = false;
             } catch (err) {
                 console.error('PiP failed', err);
