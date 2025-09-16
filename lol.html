@@ -2,47 +2,87 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Camera PiP</title>
+  <title>Face Age Detector with PiP</title>
   <style>
     body { background: black; color: white; text-align: center; }
-    video { display: none; } /* keep raw video hidden */
+    video { display: none; } /* hide raw video */
     canvas { display: inline-block; border: 2px solid white; }
     button { margin-top: 20px; padding: 10px; font-size: 16px; }
   </style>
 </head>
 <body>
-  <h1>Camera PiP Test</h1>
+  <h1>Face Age Detector</h1>
   <video id="video" autoplay playsinline></video>
   <canvas id="canvas" width="640" height="480"></canvas>
   <br>
   <button id="pipButton">Toggle PiP</button>
+  <div id="status">Loading models...</div>
+
+  <!-- face-api -->
+  <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
 
   <script>
     const video = document.getElementById("video");
     const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+    const statusEl = document.getElementById("status");
     const pipButton = document.getElementById("pipButton");
 
-    // Get camera
+    const GREEN = "#00FF00", YELLOW = "#FFFF00", RED = "#FF0000";
+    const getAgeColor = (age) => age < 30 ? GREEN : age < 40 ? YELLOW : RED;
+
     async function startCamera() {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: true });
         video.srcObject = stream;
         await video.play();
+        statusEl.innerText = "✅ Camera started.";
       } catch (err) {
         console.error("Camera error:", err);
+        statusEl.innerText = "❌ Camera failed.";
       }
     }
 
-    // Copy video to canvas
-    const ctx = canvas.getContext("2d");
-    function drawFrame() {
-      if (video.readyState === video.HAVE_ENOUGH_DATA) {
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    async function loadModels() {
+      try {
+        await faceapi.nets.tinyFaceDetector.loadFromUri("/models");
+        await faceapi.nets.ageGenderNet.loadFromUri("/models");
+        statusEl.innerText = "✅ Models loaded.";
+      } catch (err) {
+        console.error("Model error:", err);
+        statusEl.innerText = "❌ Models failed to load.";
       }
-      requestAnimationFrame(drawFrame);
     }
 
-    // PiP
+    async function onPlay() {
+      if (video.paused || video.ended) return setTimeout(onPlay, 200);
+
+      const options = new faceapi.TinyFaceDetectorOptions();
+      const detections = await faceapi.detectAllFaces(video, options).withAgeAndGender();
+
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+
+      // draw video
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      // draw detections
+      detections.forEach(det => {
+        const { age, gender, detection } = det;
+        const box = detection.box;
+
+        ctx.strokeStyle = getAgeColor(age);
+        ctx.lineWidth = 3;
+        ctx.strokeRect(box.x, box.y, box.width, box.height);
+
+        ctx.fillStyle = getAgeColor(age);
+        ctx.font = "16px Arial";
+        ctx.fillText(`${Math.round(age)} yrs (${gender})`, box.x, box.y - 5);
+      });
+
+      requestAnimationFrame(onPlay);
+    }
+
     pipButton.addEventListener("click", async () => {
       try {
         const stream = canvas.captureStream();
@@ -56,8 +96,11 @@
       }
     });
 
-    startCamera();
-    drawFrame();
+    (async () => {
+      await loadModels();
+      await startCamera();
+      video.addEventListener("play", onPlay);
+    })();
   </script>
 </body>
 </html>
