@@ -1,39 +1,24 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Age Color Detector</title>
-  <style>
-    body {
-      margin: 0;
-      height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-family: Arial, sans-serif;
-      font-size: 2rem;
-      color: white;
-      transition: background-color 0.5s ease;
-    }
-    #status {
-      z-index: 10;
-      background: rgba(0, 0, 0, 0.4);
-      padding: 20px;
-      border-radius: 10px;
-    }
-    /* cacher la cam */
-    video {
-      display: none;
-    }
-  </style>
+  <meta charset="utf-8" />
+  <title>Face Age Detection - Robust</title>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div id="status">Initializing...</div>
+  <div id="video-wrap">
+    <video id="video" width="640" height="480" autoplay muted playsinline></video>
+    <canvas id="overlay" width="640" height="480"></canvas>
+  </div>
 
-  <!-- face-api.js -->
-  <script defer src="https://cdn.jsdelivr.net/npm/face-api.js"></script>
-  <!-- ton script -->
-  <script defer src="script.js"></script>
+  <!-- Eruda (debug) -->
+  <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
+  <script>eruda.init();</script>
+
+  <!-- face-api UMD -->
+  <script src="https://unpkg.com/face-api.js/dist/face-api.min.js"></script>
+
+  <!-- main script -->
+  <script src="script.js"></script>
 </body>
 </html>
