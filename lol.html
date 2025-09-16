@@ -161,7 +161,7 @@
             if (!stream) return alert('Start camera first');
 
             colorPipe.srcObject = hiddenCanvas.captureStream(60);
-            colorPipe.play();
+            await colorPipe.play();
 
             sampling = true;
             samplerInterval = setInterval(() => {
