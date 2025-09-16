@@ -1,19 +1,29 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Face Age Detector + Realtime PiP Color</title>
   <style>
-    body{font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial;display:flex;flex-direction:column;align-items:center;gap:12px;padding:18px;background:#000;color:#fff}
-    #videoWrapper{position:relative;display:inline-block}
-    video#video{width:640px;height:auto;background:#000}
-    canvas#overlay{position:absolute;left:0;top:0}
-    #controls{display:flex;gap:8px;margin-top:10px}
-    button{padding:8px 12px;border-radius:6px;border:1px solid #ccc;background:#f6f6f6;color:#000}
+    body{
+      font-family: system-ui,Segoe UI,Roboto,Helvetica,Arial;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      gap:12px;
+      padding:18px;
+      background:#000;
+      color:#fff
+    }
+    #videoWrapper{position:relative; display:inline-block;}
+    video#video{width:640px; height:auto; background:#000;}
+    canvas#overlay{position:absolute; left:0; top:0;}
+    #controls{display:flex; gap:8px; margin-top:10px;}
+    button{padding:8px 12px; border-radius:6px; border:1px solid #ccc; background:#f6f6f6; color:#000;}
   </style>
 </head>
 <body>
+  <!-- Debug -->
   <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
   <script>eruda.init();</script>
 
@@ -32,8 +42,8 @@
   <!-- Hidden video for PiP color -->
   <video id="colorPipe" autoplay playsinline muted style="display:none"></video>
 
-  <!-- face-api.js -->
-  <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+  <!-- face-api.js must be loaded before using it -->
+  <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
 
   <script>
     const video = document.getElementById('video');
@@ -45,7 +55,6 @@
     const stopPipBtn = document.getElementById('stop-pip');
     const colorPipe = document.getElementById('colorPipe');
 
-    // Colors
     const GREEN = "#00FF00";
     const YELLOW = "#FFFF00";
     const RED = "#FF0000";
@@ -54,10 +63,11 @@
     let sampling = false;
     let samplerInterval = null;
 
+    // Offscreen canvas for PiP
     const hiddenCanvas = document.createElement('canvas');
     const hiddenCtx = hiddenCanvas.getContext('2d');
 
-    const colorStream = () => hiddenCanvas.captureStream(30);
+    const colorStream = () => hiddenCanvas.captureStream(30); // 30fps
 
     async function startCamera() {
       try {
@@ -94,13 +104,11 @@
 
     async function onPlay() {
       if (video.paused || video.ended) {
-        return setTimeout(() => onPlay());
+        return setTimeout(onPlay, 100);
       }
 
       const options = new faceapi.TinyFaceDetectorOptions();
-      const detections = await faceapi
-        .detectAllFaces(video, options)
-        .withAgeAndGender();
+      const detections = await faceapi.detectAllFaces(video, options).withAgeAndGender();
 
       overlay.width = video.videoWidth;
       overlay.height = video.videoHeight;
@@ -116,8 +124,7 @@
 
         ctx.fillStyle = getAgeColor(age);
         ctx.font = "16px Arial";
-        let text = `${Math.round(age)} yrs (${gender})`;
-        ctx.fillText(text, box.x, box.y - 5);
+        ctx.fillText(`${Math.round(age)} yrs (${gender})`, box.x, box.y - 5);
 
         document.body.style.background = getAgeColor(age);
       });
@@ -127,28 +134,18 @@
 
     video.addEventListener('play', onPlay);
 
-    // --- PiP Color Handling ---
+    // --- PiP Color ---
     function computeAverageColor() {
-      try {
-        hiddenCtx.drawImage(video, 0, 0, hiddenCanvas.width, hiddenCanvas.height);
-        const data = hiddenCtx.getImageData(0,0,hiddenCanvas.width,hiddenCanvas.height).data;
-        let r=0,g=0,b=0, count=0;
-        for(let i=0;i<data.length;i+=4){
-          r += data[i];
-          g += data[i+1];
-          b += data[i+2];
-          count++;
-        }
-        r = Math.round(r/count);
-        g = Math.round(g/count);
-        b = Math.round(b/count);
-        return {r,g,b};
-      }catch(e){
-        return {r:0,g:0,b:0};
+      hiddenCtx.drawImage(video, 0, 0, hiddenCanvas.width, hiddenCanvas.height);
+      const data = hiddenCtx.getImageData(0,0,hiddenCanvas.width,hiddenCanvas.height).data;
+      let r=0,g=0,b=0,count=0;
+      for(let i=0;i<data.length;i+=4){
+        r+=data[i]; g+=data[i+1]; b+=data[i+2]; count++;
       }
+      return { r: Math.round(r/count), g: Math.round(g/count), b: Math.round(b/count) };
     }
 
-    function drawColorRect({r,g,b}){
+    function drawColorRect({r,g,b}) {
       hiddenCtx.fillStyle = `rgb(${r},${g},${b})`;
       hiddenCtx.fillRect(0,0,hiddenCanvas.width,hiddenCanvas.height);
     }
@@ -166,7 +163,7 @@
         await colorPipe.requestPictureInPicture();
         startPipBtn.disabled = true;
         stopPipBtn.disabled = false;
-      }catch(err){
+      } catch(err){
         console.error('PiP failed', err);
         stopSampling();
       }
@@ -174,7 +171,7 @@
 
     function stopSampling(){
       sampling = false;
-      if(samplerInterval) { clearInterval(samplerInterval); samplerInterval=null; }
+      if(samplerInterval){ clearInterval(samplerInterval); samplerInterval=null; }
       if(document.pictureInPictureElement){
         document.exitPictureInPicture().catch(()=>{});
       }
@@ -182,7 +179,6 @@
       stopPipBtn.disabled = true;
     }
 
-    // Events
     startPipBtn.addEventListener('click', startPipColor);
     stopPipBtn.addEventListener('click', stopSampling);
     document.addEventListener('leavepictureinpicture', stopSampling);
