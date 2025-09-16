@@ -24,8 +24,6 @@ async function loadModels() {
   try {
     await faceapi.nets.tinyFaceDetector.loadFromUri("/models");
     await faceapi.nets.ageGenderNet.loadFromUri("/models");
-    await faceapi.nets.faceLandmark68Net.loadFromUri("/models");
-    await faceapi.nets.faceRecognitionNet.loadFromUri("/models");
     statusEl.innerText = "✅ Models loaded successfully.";
   } catch (err) {
     console.error("Error loading models:", err);
