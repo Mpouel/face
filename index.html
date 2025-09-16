@@ -1,24 +1,27 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <title>Face Age Detection - Robust</title>
-  <link rel="stylesheet" href="style.css" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Face Age Detector</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div id="video-wrap">
-    <video id="video" width="640" height="480" autoplay muted playsinline></video>
-    <canvas id="overlay" width="640" height="480"></canvas>
+  <h1>Face Age Detector</h1>
+  <div id="videoWrapper">
+    <video id="video" autoplay muted></video>
+    <canvas id="overlay"></canvas>
   </div>
+  <div id="status">Initializing...</div>
 
-  <!-- Eruda (debug) -->
+  <!-- face-api.js -->
+  <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+  <script defer src="script.js"></script>
+
+  <!-- eruda debug -->
   <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
-  <script>eruda.init();</script>
-
-  <!-- face-api UMD -->
-  <script src="https://unpkg.com/face-api.js/dist/face-api.min.js"></script>
-
-  <!-- main script -->
-  <script src="script.js"></script>
+  <script>
+    eruda.init();
+  </script>
 </body>
 </html>
