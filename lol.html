@@ -62,12 +62,12 @@
     <div id="status">Initializing...</div>
 
     <div id="controls">
-        <button id="start-pip" disabled>Start PiP (color)</button>
-        <button id="stop-pip" disabled>Stop PiP</button>
+        <button onclick="startPipColor()" id="start-pip">Start PiP (color)</button>
+        <button id="stop-pip">Stop PiP</button>
     </div>
 
     <!-- Hidden video for PiP (must not be display:none) -->
-<video id="colorPipe" autoplay playsinline muted style="width:1px;height:1px;position:absolute;left:-1000px;top:0;"></video>
+<video id="colorPipe" autoplay muted playsinline style="display:none"></video>
 
 
     <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
@@ -88,7 +88,13 @@
         const hiddenCanvas = document.createElement('canvas');
         const hiddenCtx = hiddenCanvas.getContext('2d');
 
-        const colorStream = () => hiddenCanvas.captureStream(30);
+
+        startPipBtn.addEventListener('click', startPipColor);
+        stopPipBtn.addEventListener('click', stopSampling);
+        document.addEventListener('leavepictureinpicture', stopSampling);
+
+
+        //const colorStream = () => hiddenCanvas.captureStream(30);
 
         async function startCamera() {
             try {
@@ -154,13 +160,8 @@
         async function startPipColor() {
             if (!stream) return alert('Start camera first');
 
-            colorPipe.srcObject = colorStream();
-
-            await new Promise(resolve => {
-                colorPipe.onloadedmetadata = () => { colorPipe.oncanplay = () => resolve(); }
-            });
-
-            await colorPipe.play();
+            colorPipe.srcObject = hiddenCanvas.captureStream(60);
+            colorPipe.play();
 
             sampling = true;
             samplerInterval = setInterval(() => {
@@ -185,10 +186,6 @@
             startPipBtn.disabled = false;
             stopPipBtn.disabled = true;
         }
-
-        startPipBtn.addEventListener('click', startPipColor);
-        stopPipBtn.addEventListener('click', stopSampling);
-        document.addEventListener('leavepictureinpicture', stopSampling);
 
         (async () => { await loadModels(); await startCamera(); })();
     </script>
