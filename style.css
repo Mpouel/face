@@ -6,8 +6,5 @@ body {
     align-items: center;
     height: 100vh;
   }
-  
-  #video, #canvas {
-    display: none; /* keep hidden */
-  }
+
   
