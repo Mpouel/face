@@ -1,23 +1,35 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Age Detection PiP</title>
-  <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Face Age Detector</title>
+  <style>
+    body {
+      text-align: center;
+      font-family: Arial, sans-serif;
+    }
+    #video, #overlay {
+      max-width: 80%;
+      border: 1px solid black;
+    }
+    #ageDisplay {
+      font-size: 20px;
+      font-weight: bold;
+      margin-top: 10px;
+    }
+  </style>
 </head>
 <body>
-  <button id="startBtn">Start Camera & PiP</button>
+  <button id="startBtn">Start</button>
+  <br /><br />
   <video id="video" autoplay muted playsinline></video>
-  <canvas id="canvas"></canvas>
+  <canvas id="overlay"></canvas>
+  <div id="ageDisplay">Waiting...</div>
 
-  <!-- Eruda debugger -->
-  <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
-  <script>eruda.init();</script>
-
-  <!-- face-api.js must be loaded BEFORE your script -->
-  <script src="https://cdn.jsdelivr.net/npm/face-api.js/dist/face-api.min.js"></script>
-
-  <!-- your logic -->
-  <script src="script.js"></script>
+  <!-- face-api.js -->
+  <script defer src="https://cdn.jsdelivr.net/npm/face-api.js"></script>
+  <!-- ton JS -->
+  <script defer src="script.js"></script>
 </body>
 </html>
