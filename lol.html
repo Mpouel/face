@@ -66,7 +66,9 @@
         <button id="stop-pip" disabled>Stop PiP</button>
     </div>
 
-    <video id="colorPipe" autoplay playsinline muted style="display:none"></video>
+    <!-- Hidden video for PiP (must not be display:none) -->
+<video id="colorPipe" autoplay playsinline muted style="width:1px;height:1px;position:absolute;left:-1000px;top:0;"></video>
+
 
     <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
 
