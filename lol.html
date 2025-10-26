@@ -9,7 +9,7 @@
   <script>
     eruda.init();
   </script>
-  <style>
+   <style>
     body {
       font-family: Arial, sans-serif;
       margin: 20px;
@@ -37,7 +37,6 @@
     <video id="video" autoplay muted playsinline></video>
     <canvas id="overlay"></canvas>
     <canvas id="pip" style="display: none;"></canvas>
-    <video id="pipVideo" style="display: none;"></video>
   </div>
   <div id="status">Loading...</div>
   <div>
@@ -52,7 +51,6 @@
     const ctx = overlay.getContext('2d');
     const statusEl = document.getElementById('status');
     const pipCanvas = document.getElementById("pip");
-    const pipVideo = document.getElementById("pipVideo");
     const pipCtx = pipCanvas.getContext("2d");
     const startPIPBtn = document.getElementById('startPIPBtn');
     const stopPIPBtn = document.getElementById('stopPIPBtn');
@@ -65,9 +63,8 @@
     // State
     let rafId;
     let pipWindow;
-    let colCanvas = document.createElement('canvas');
-    let fps = 30;
     let maxDetectedAge = 30; // Default
+    let pipVideoElement;
 
     // Helper function
     function getAgeColor(age) {
@@ -132,7 +129,18 @@
       });
 
       maxDetectedAge = maxAge || maxDetectedAge;
+      if (pipWindow) {
+        updatePIPColor();
+      }
+
       rafId = requestAnimationFrame(onPlay);
+    }
+
+    // Update PIP color
+    function updatePIPColor() {
+      const pipColor = getAgeColor(maxDetectedAge);
+      pipCtx.fillStyle = pipColor;
+      pipCtx.fillRect(0, 0, pipCanvas.width, pipCanvas.height);
     }
 
     // Start Picture-in-Picture
@@ -142,18 +150,12 @@
         return;
       }
 
-      cancelAnimationFrame(rafId);
-      const pipColor = getAgeColor(maxDetectedAge);
-      pipCtx.fillStyle = pipColor;
-      pipCtx.fillRect(0, 0, pipCanvas.width, pipCanvas.height);
+      pipCanvas.width = 300;
+      pipCanvas.height = 200;
+      updatePIPColor();
 
-      colCanvas.width = video.videoWidth;
-      colCanvas.height = video.videoHeight;
-      const colCtx = colCanvas.getContext('2d');
-      colCtx.drawImage(video, 0, 0, colCanvas.width, colCanvas.height);
-
-      const stream = colCanvas.captureStream(fps);
-      const pipVideoElement = document.createElement('video');
+      const stream = pipCanvas.captureStream(30);
+      pipVideoElement = document.createElement('video');
       pipVideoElement.style.display = 'none';
       pipVideoElement.muted = true;
       pipVideoElement.playsInline = true;
@@ -171,9 +173,9 @@
       if (pipWindow) {
         pipWindow = null;
       }
-      const pipVideoElement = document.querySelector('video[style*="display: none"]');
       if (pipVideoElement) {
         pipVideoElement.remove();
+        pipVideoElement = null;
       }
     }
 
