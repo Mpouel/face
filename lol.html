@@ -7,19 +7,18 @@
   <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
   <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      eruda.init();
-    });
+    eruda.init();
   </script>
   <style>
     body {
       font-family: Arial, sans-serif;
       margin: 20px;
     }
-    #video, #overlay, #pip {
+    #video, #overlay {
       display: block;
       margin-bottom: 10px;
       border: 1px solid #ccc;
+      max-width: 100%;
     }
     #status {
       margin: 10px 0;
@@ -47,6 +46,7 @@
   </div>
 
   <script>
+    // DOM Elements
     const video = document.getElementById('video');
     const overlay = document.getElementById('overlay');
     const ctx = overlay.getContext('2d');
@@ -61,11 +61,22 @@
     const GREEN = "#00FF00";
     const YELLOW = "#FFFF00";
     const RED = "#FF0000";
+
+    // State
     let rafId;
     let pipWindow;
     let colCanvas = document.createElement('canvas');
     let fps = 30;
+    let maxDetectedAge = 30; // Default
 
+    // Helper function
+    function getAgeColor(age) {
+      if (age < 30) return GREEN;
+      if (age < 40) return YELLOW;
+      return RED;
+    }
+
+    // Camera setup
     async function startCamera() {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: true });
@@ -77,6 +88,7 @@
       }
     }
 
+    // Load face detection models
     async function loadModels() {
       statusEl.innerText = "Loading models...";
       try {
@@ -89,12 +101,7 @@
       }
     }
 
-    function getAgeColor(age) {
-      if (age < 30) return GREEN;
-      if (age < 40) return YELLOW;
-      return RED;
-    }
-
+    // Face detection loop
     async function onPlay() {
       if (video.paused || video.ended) {
         rafId = requestAnimationFrame(onPlay);
@@ -110,6 +117,7 @@
       overlay.height = video.videoHeight;
       ctx.clearRect(0, 0, overlay.width, overlay.height);
 
+      let maxAge = 0;
       detections.forEach(det => {
         const { age, gender, detection } = det;
         const color = getAgeColor(age);
@@ -120,11 +128,14 @@
         ctx.fillStyle = color;
         ctx.font = "14px Arial";
         ctx.fillText(`Age: ${Math.round(age)}, Gender: ${gender}`, box.x, box.y > 10 ? box.y - 5 : 10);
+        if (age > maxAge) maxAge = age;
       });
 
+      maxDetectedAge = maxAge || maxDetectedAge;
       rafId = requestAnimationFrame(onPlay);
     }
 
+    // Start Picture-in-Picture
     async function startPIP() {
       if (!document.pictureInPictureEnabled) {
         alert('Picture-in-Picture not supported in your browser.');
@@ -132,7 +143,8 @@
       }
 
       cancelAnimationFrame(rafId);
-      pipCtx.fillStyle = "blue";
+      const pipColor = getAgeColor(maxDetectedAge);
+      pipCtx.fillStyle = pipColor;
       pipCtx.fillRect(0, 0, pipCanvas.width, pipCanvas.height);
 
       colCanvas.width = video.videoWidth;
@@ -154,6 +166,7 @@
       pipVideoElement.addEventListener('leavepictureinpicture', cleanup);
     }
 
+    // Cleanup PIP
     function cleanup() {
       if (pipWindow) {
         pipWindow = null;
@@ -164,6 +177,7 @@
       }
     }
 
+    // Stop PIP
     async function stopPIP() {
       if (document.pictureInPictureElement) {
         await document.exitPictureInPicture();
@@ -172,6 +186,7 @@
       }
     }
 
+    // Event listeners
     video.addEventListener('play', onPlay);
     startPIPBtn.addEventListener('click', startPIP);
     stopPIPBtn.addEventListener('click', stopPIP);
