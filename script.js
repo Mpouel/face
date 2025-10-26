@@ -50,26 +50,12 @@ async function onPlay() {
   overlay.width = video.videoWidth;
   overlay.height = video.videoHeight;
   ctx.clearRect(0, 0, overlay.width, overlay.height);
-
+  const ages = [];
   detections.forEach(det => {
     const { age, gender, detection } = det;
-    const box = detection.box;
-
-    // Draw box
-    ctx.strokeStyle = getAgeColor(age);
-    ctx.lineWidth = 3;
-    ctx.strokeRect(box.x, box.y, box.width, box.height);
-
-    // Draw label
-    ctx.fillStyle = getAgeColor(age);
-    ctx.font = "16px Arial";
-    let text = `${Math.round(age)} yrs (${gender})`
-    ctx.fillText(text, box.x, box.y - 5);
-    console.log(text)
-
-    // Change background color
-    document.body.style.background = getAgeColor(age);
+    ages.push(age)
   });
+  s
 
   requestAnimationFrame(onPlay);
 }
