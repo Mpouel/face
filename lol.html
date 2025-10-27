@@ -16,7 +16,9 @@
     }
     #video, #overlay {
       display: block;
-      margin-bottom: 10px;
+      position: fixed;
+      top:0;
+      left:0;
       border: 1px solid #ccc;
       max-width: 100%;
     }
@@ -32,172 +34,239 @@
   </style>
 </head>
 <body>
-  <h1>Face Detection with PIP</h1>
-  <div>
-    <video id="video" autoplay muted playsinline></video>
-    <canvas id="overlay"></canvas>
-    <canvas id="pip" style="display: none;"></canvas>
-  </div>
-  <div id="status">Loading...</div>
-  <div>
-    <button id="startPIPBtn">Start PIP</button>
-    <button id="stopPIPBtn">Stop PIP</button>
-  </div>
-
-  <script>
-    // DOM Elements
-    const video = document.getElementById('video');
-    const overlay = document.getElementById('overlay');
-    const ctx = overlay.getContext('2d');
-    const statusEl = document.getElementById('status');
-    const pipCanvas = document.getElementById("pip");
-    const pipCtx = pipCanvas.getContext("2d");
-    const startPIPBtn = document.getElementById('startPIPBtn');
-    const stopPIPBtn = document.getElementById('stopPIPBtn');
-
-    // Colors
-    const GREEN = "#00FF00";
-    const YELLOW = "#FFFF00";
-    const RED = "#FF0000";
-
-    // State
-    let rafId;
-    let pipWindow;
-    let maxDetectedAge = 30; // Default
-    let pipVideoElement;
-
-    // Helper function
-    function getAgeColor(age) {
-      if (age < 30) return GREEN;
-      if (age < 40) return YELLOW;
-      return RED;
-    }
-
-    // Camera setup
-    async function startCamera() {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        video.srcObject = stream;
-        statusEl.innerText = "✅ Camera started.";
-      } catch (err) {
-        console.error("Error starting camera:", err);
-        statusEl.innerText = "❌ Camera failed.";
-      }
-    }
-
-    // Load face detection models
-    async function loadModels() {
-      statusEl.innerText = "Loading models...";
-      try {
-        await faceapi.nets.tinyFaceDetector.loadFromUri("/models");
-        await faceapi.nets.ageGenderNet.loadFromUri("/models");
-        statusEl.innerText = "✅ Models loaded successfully.";
-      } catch (err) {
-        console.error("Error loading models:", err);
-        statusEl.innerText = "❌ Could not load models. Ensure /models exists.";
-      }
-    }
-
-    // Face detection loop
-    async function onPlay() {
-      if (video.paused || video.ended) {
-        rafId = requestAnimationFrame(onPlay);
-        return;
-      }
-
-      const options = new faceapi.TinyFaceDetectorOptions();
-      const detections = await faceapi
-        .detectAllFaces(video, options)
-        .withAgeAndGender();
-
-      overlay.width = video.videoWidth;
-      overlay.height = video.videoHeight;
-      ctx.clearRect(0, 0, overlay.width, overlay.height);
-
-      let maxAge = 0;
-      detections.forEach(det => {
-        const { age, gender, detection } = det;
-        const color = getAgeColor(age);
-        const box = detection.box;
+    <h1>Face Detection with PIP and Arrows</h1>
+    <div>
+      <video id="video" autoplay muted playsinline></video>
+      <canvas id="overlay"></canvas>
+      <canvas id="pip" style="display: none;"></canvas>
+    </div>
+    <div id="status">Loading...</div>
+    <div>
+      <button id="startPIPBtn">Start PIP</button>
+      <button id="stopPIPBtn">Stop PIP</button>
+    </div>
+  
+    <script>
+      // DOM Elements
+      const video = document.getElementById('video');
+      const overlay = document.getElementById('overlay');
+      const ctx = overlay.getContext('2d');
+      const statusEl = document.getElementById('status');
+      const pipCanvas = document.getElementById("pip");
+      const pipCtx = pipCanvas.getContext("2d");
+      const startPIPBtn = document.getElementById('startPIPBtn');
+      const stopPIPBtn = document.getElementById('stopPIPBtn');
+  
+      // Colors
+      const GREEN = "#00FF00";
+      const YELLOW = "#FFFF00";
+      const RED = "#FF0000";
+  
+      // State
+      let rafId;
+      let pipWindow;
+      let maxDetectedAge = 30; // Default
+      let pipVideoElement;
+  
+      // Helper function: Draw an arrow
+      function drawArrow(ctx, x, y, size, direction, color) {
         ctx.strokeStyle = color;
         ctx.lineWidth = 2;
-        ctx.strokeRect(box.x, box.y, box.width, box.height);
-        ctx.fillStyle = color;
-        ctx.font = "14px Arial";
-        ctx.fillText(`Age: ${Math.round(age)}, Gender: ${gender}`, box.x, box.y > 10 ? box.y - 5 : 10);
-        if (age > maxAge) maxAge = age;
-      });
-
-      maxDetectedAge = maxAge || maxDetectedAge;
-      if (pipWindow) {
+        ctx.beginPath();
+        // Arrow head coordinates
+        let headX, headY;
+        switch (direction) {
+          case 'up-left':
+            headX = x - size;
+            headY = y - size;
+            break;
+          case 'up-center':
+            headX = x;
+            headY = y - size;
+            break;
+          case 'up-right':
+            headX = x + size;
+            headY = y - size;
+            break;
+          case 'center-left':
+            headX = x - size;
+            headY = y;
+            break;
+          case 'center-right':
+            headX = x + size;
+            headY = y;
+            break;
+          case 'down-left':
+            headX = x - size;
+            headY = y + size;
+            break;
+          case 'down-center':
+            headX = x;
+            headY = y + size;
+            break;
+          case 'down-right':
+            headX = x + size;
+            headY = y + size;
+            break;
+          default: // center-center
+            headX = x;
+            headY = y - size;
+        }
+        // Draw arrow line
+        ctx.moveTo(x, y);
+        ctx.lineTo(headX, headY);
+        // Draw arrow head
+        const angle = Math.atan2(headY - y, headX - x);
+        ctx.lineTo(
+          headX - 10 * Math.cos(angle - Math.PI / 6),
+          headY - 10 * Math.sin(angle - Math.PI / 6)
+        );
+        ctx.moveTo(headX, headY);
+        ctx.lineTo(
+          headX - 10 * Math.cos(angle + Math.PI / 6),
+          headY - 10 * Math.sin(angle + Math.PI / 6)
+        );
+        ctx.stroke();
+      }
+  
+      // Helper function: Get color based on age
+      function getAgeColor(age) {
+        if (age < 30) return GREEN;
+        if (age < 40) return YELLOW;
+        return RED;
+      }
+  
+      // Camera setup
+      async function startCamera() {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+          video.srcObject = stream;
+          statusEl.innerText = "✅ Camera started.";
+        } catch (err) {
+          console.error("Error starting camera:", err);
+          statusEl.innerText = "❌ Camera failed.";
+        }
+      }
+  
+      // Load face detection models
+      async function loadModels() {
+        statusEl.innerText = "Loading models...";
+        try {
+          await faceapi.nets.tinyFaceDetector.loadFromUri("/models");
+          await faceapi.nets.ageGenderNet.loadFromUri("/models");
+          statusEl.innerText = "✅ Models loaded successfully.";
+        } catch (err) {
+          console.error("Error loading models:", err);
+          statusEl.innerText = "❌ Could not load models. Ensure /models exists.";
+        }
+      }
+  
+      // Face detection loop
+      async function onPlay() {
+        if (video.paused || video.ended) {
+          rafId = requestAnimationFrame(onPlay);
+          return;
+        }
+  
+        const options = new faceapi.TinyFaceDetectorOptions();
+        const detections = await faceapi
+          .detectAllFaces(video, options)
+          .withAgeAndGender();
+  
+        overlay.width = video.videoWidth;
+        overlay.height = video.videoHeight;
+        ctx.clearRect(0, 0, overlay.width, overlay.height);
+  
+        let maxAge = 0;
+        detections.forEach(det => {
+          const { age, gender, detection } = det;
+          const color = getAgeColor(age);
+          const box = detection.box;
+          ctx.strokeStyle = color;
+          ctx.lineWidth = 2;
+          ctx.strokeRect(box.x, box.y, box.width, box.height);
+          ctx.fillStyle = color;
+          ctx.font = "14px Arial";
+          ctx.fillText(`Age: ${Math.round(age)}, Gender: ${gender}`, box.x, box.y > 10 ? box.y - 5 : 10);
+  
+          // Draw arrow at the center of the face
+          const centerX = box.x + box.width / 2;
+          const centerY = box.y + box.height / 2;
+          drawArrow(ctx, centerX, centerY, 30, 'up-center', color);
+  
+          if (age > maxAge) maxAge = age;
+        });
+  
+        maxDetectedAge = maxAge || maxDetectedAge;
+        if (pipWindow) {
+          updatePIPColor();
+        }
+  
+        rafId = requestAnimationFrame(onPlay);
+      }
+  
+      // Update PIP color
+      function updatePIPColor() {
+        const pipColor = getAgeColor(maxDetectedAge);
+        pipCtx.fillStyle = pipColor;
+        pipCtx.fillRect(0, 0, pipCanvas.width, pipCanvas.height);
+      }
+  
+      // Start Picture-in-Picture
+      async function startPIP() {
+        if (!document.pictureInPictureEnabled) {
+          alert('Picture-in-Picture not supported in your browser.');
+          return;
+        }
+  
+        pipCanvas.width = 300;
+        pipCanvas.height = 200;
         updatePIPColor();
+  
+        const stream = pipCanvas.captureStream(30);
+        pipVideoElement = document.createElement('video');
+        pipVideoElement.style.display = 'none';
+        pipVideoElement.muted = true;
+        pipVideoElement.playsInline = true;
+        pipVideoElement.autoplay = true;
+        pipVideoElement.srcObject = stream;
+        document.body.appendChild(pipVideoElement);
+  
+        await pipVideoElement.play();
+        pipWindow = await pipVideoElement.requestPictureInPicture();
+        pipVideoElement.addEventListener('leavepictureinpicture', cleanup);
       }
-
-      rafId = requestAnimationFrame(onPlay);
-    }
-
-    // Update PIP color
-    function updatePIPColor() {
-      const pipColor = getAgeColor(maxDetectedAge);
-      pipCtx.fillStyle = pipColor;
-      pipCtx.fillRect(0, 0, pipCanvas.width, pipCanvas.height);
-    }
-
-    // Start Picture-in-Picture
-    async function startPIP() {
-      if (!document.pictureInPictureEnabled) {
-        alert('Picture-in-Picture not supported in your browser.');
-        return;
+  
+      // Cleanup PIP
+      function cleanup() {
+        if (pipWindow) {
+          pipWindow = null;
+        }
+        if (pipVideoElement) {
+          pipVideoElement.remove();
+          pipVideoElement = null;
+        }
       }
-
-      pipCanvas.width = 300;
-      pipCanvas.height = 200;
-      updatePIPColor();
-
-      const stream = pipCanvas.captureStream(30);
-      pipVideoElement = document.createElement('video');
-      pipVideoElement.style.display = 'none';
-      pipVideoElement.muted = true;
-      pipVideoElement.playsInline = true;
-      pipVideoElement.autoplay = true;
-      pipVideoElement.srcObject = stream;
-      document.body.appendChild(pipVideoElement);
-
-      await pipVideoElement.play();
-      pipWindow = await pipVideoElement.requestPictureInPicture();
-      pipVideoElement.addEventListener('leavepictureinpicture', cleanup);
-    }
-
-    // Cleanup PIP
-    function cleanup() {
-      if (pipWindow) {
-        pipWindow = null;
+  
+      // Stop PIP
+      async function stopPIP() {
+        if (document.pictureInPictureElement) {
+          await document.exitPictureInPicture();
+        } else {
+          cleanup();
+        }
       }
-      if (pipVideoElement) {
-        pipVideoElement.remove();
-        pipVideoElement = null;
-      }
-    }
-
-    // Stop PIP
-    async function stopPIP() {
-      if (document.pictureInPictureElement) {
-        await document.exitPictureInPicture();
-      } else {
-        cleanup();
-      }
-    }
-
-    // Event listeners
-    video.addEventListener('play', onPlay);
-    startPIPBtn.addEventListener('click', startPIP);
-    stopPIPBtn.addEventListener('click', stopPIP);
-
-    // Initialize
-    (async () => {
-      await loadModels();
-      await startCamera();
-    })();
-  </script>
-</body>
-</html>
+  
+      // Event listeners
+      video.addEventListener('play', onPlay);
+      startPIPBtn.addEventListener('click', startPIP);
+      stopPIPBtn.addEventListener('click', stopPIP);
+  
+      // Initialize
+      (async () => {
+        await loadModels();
+        await startCamera();
+      })();
+    </script>
+  </body>
+  </html>
