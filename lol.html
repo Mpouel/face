@@ -68,67 +68,6 @@
       let maxDetectedAge = 30; // Default
       let pipVideoElement;
   
-      // Helper function: Draw an arrow
-      function drawArrow(ctx, x, y, size, direction, color) {
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        // Arrow head coordinates
-        let headX, headY;
-        switch (direction) {
-          case 'up-left':
-            headX = x - size;
-            headY = y - size;
-            break;
-          case 'up-center':
-            headX = x;
-            headY = y - size;
-            break;
-          case 'up-right':
-            headX = x + size;
-            headY = y - size;
-            break;
-          case 'center-left':
-            headX = x - size;
-            headY = y;
-            break;
-          case 'center-right':
-            headX = x + size;
-            headY = y;
-            break;
-          case 'down-left':
-            headX = x - size;
-            headY = y + size;
-            break;
-          case 'down-center':
-            headX = x;
-            headY = y + size;
-            break;
-          case 'down-right':
-            headX = x + size;
-            headY = y + size;
-            break;
-          default: // center-center
-            headX = x;
-            headY = y - size;
-        }
-        // Draw arrow line
-        ctx.moveTo(x, y);
-        ctx.lineTo(headX, headY);
-        // Draw arrow head
-        const angle = Math.atan2(headY - y, headX - x);
-        ctx.lineTo(
-          headX - 10 * Math.cos(angle - Math.PI / 6),
-          headY - 10 * Math.sin(angle - Math.PI / 6)
-        );
-        ctx.moveTo(headX, headY);
-        ctx.lineTo(
-          headX - 10 * Math.cos(angle + Math.PI / 6),
-          headY - 10 * Math.sin(angle + Math.PI / 6)
-        );
-        ctx.stroke();
-      }
-  
       // Helper function: Get color based on age
       function getAgeColor(age) {
         if (age < 30) return GREEN;
@@ -192,7 +131,6 @@
           // Draw arrow at the center of the face
           const centerX = box.x + box.width / 2;
           const centerY = box.y + box.height / 2;
-          drawArrow(ctx, centerX, centerY, 30, 'up-center', color);
   
           if (age > maxAge) maxAge = age;
         });
