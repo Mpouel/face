@@ -120,6 +120,9 @@
         detections.forEach(det => {
           const { age, gender, detection } = det;
           const color = getAgeColor(age);
+          if (color !== GREEN) {
+            window.alert("sometext");
+          }
           const box = detection.box;
           ctx.strokeStyle = color;
           ctx.lineWidth = 2;
